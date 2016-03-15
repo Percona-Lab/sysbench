@@ -1247,6 +1247,7 @@ bool mongodb_distinct_range(db_conn_t *con, char *database_name, char *collectio
 // db.sbtest8.update({_id: 5523412}, {$inc: {k: 1}}, false, false)
 bool mongodb_index_update(db_conn_t *con, char *database_name, char *collection_name, int _id)
 {
+  //  fprintf(stderr,"mongodb_index_update(con, %s, %s, %d)\n",database_name, collection_name, _id);
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_write_concern_t *w = mongoc_write_concern_new();
   mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
@@ -1254,8 +1255,8 @@ bool mongodb_index_update(db_conn_t *con, char *database_name, char *collection_
   bool res;
   bson_error_t error;
   selector = BCON_NEW("_id", BCON_INT32(_id));
-  update = BCON_NEW("$inc", "{", "k", BCON_INT32(1));
-  res = mongoc_collection_update(collection, MONGOC_QUERY_NONE, selector, update, w, &error);
+  update = BCON_NEW("$inc", "{", "k", BCON_INT32(1),"}");
+  res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, w, &error);
   if (!res) {
     fprintf(stderr,"error in index update (%s)\n", error.message);
   }
@@ -1268,6 +1269,7 @@ bool mongodb_index_update(db_conn_t *con, char *database_name, char *collection_
 //db.sbtest8.update({_id: 5523412}, {$set: {c: "hello there"}}, false, false)
 bool mongodb_non_index_update(db_conn_t *con, char *database_name, char *collection_name, int _id)
 {
+  //  fprintf(stderr,"mongodb_non_index_update(con, %s, %s, %d)\n",database_name, collection_name, _id);
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_write_concern_t *w = mongoc_write_concern_new();
   mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
@@ -1276,9 +1278,9 @@ bool mongodb_non_index_update(db_conn_t *con, char *database_name, char *collect
   bson_error_t error;
   selector = BCON_NEW("_id", BCON_INT32(_id));
   update = BCON_NEW("$set", "{", "c", BCON_UTF8("hello there"), "}");
-  res = mongoc_collection_update(collection, MONGOC_QUERY_NONE, selector, update, w, &error);
+  res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, w, &error);
   if (!res) {
-    fprintf(stderr,"error in index update (%s)\n", error.message);
+    fprintf(stderr,"error in non index update (%s)\n", error.message);
   }
   mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
