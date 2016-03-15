@@ -344,16 +344,16 @@ int register_driver_pgsql(sb_list_t *);
 
 #ifdef USE_MONGODB
 int mongodb_init_driver(void);
-int mongodb_insert_document(db_conn_t *, char *, char *, bson_t *);
-bool mongodb_drop_collection(db_conn_t *, char *, char *);
-bool mongodb_create_index(db_conn_t *, char *, char *, char *);
-bool mongodb_point_select(db_conn_t *, char *, char *, int);
-bool mongodb_simple_range(db_conn_t *, char *, char *, int, int);
-bool mongodb_sum_range(db_conn_t *, char *, char *, int, int);
-bool mongodb_order_range(db_conn_t *, char *, char *, int, int);
-bool mongodb_distinct_range(db_conn_t *, char *, char *, int, int);
-bool mongodb_index_update(db_conn_t *, char *, char *, int);
-bool mongodb_non_index_update(db_conn_t *, char *, char *, int);
-bool mongodb_oltp_insert_document(db_conn_t *, char *, char *, bson_t *);
-bool mongodb_remove_document(db_conn_t *, char *, char *, int);
+int mongodb_insert_document(db_conn_t *, const char *, const char *, bson_t *);
+bool mongodb_drop_collection(db_conn_t *, const char *, const char *);
+bool mongodb_create_index(db_conn_t *, const char *, const char *, const char *);
+bool mongodb_point_select(db_conn_t *, const char *, const char *, const int);
+bool mongodb_simple_range(db_conn_t *, const char *, const char *, const int, const int);
+bool mongodb_sum_range(db_conn_t *, const char *, const char *, const int, const int);
+bool mongodb_order_range(db_conn_t *, const char *, const char *, const int, const int);
+bool mongodb_distinct_range(db_conn_t *, const char *, const char *, const int, const int);
+bool mongodb_index_update(db_conn_t *, const char *, const char *, const int);
+bool mongodb_non_index_update(db_conn_t *, const char *, const char *, const int);
+bool mongodb_oltp_insert_document(db_conn_t *, const char *, const char *, bson_t *);
+bool mongodb_remove_document(db_conn_t *, const char *, const char *, const int);
 #endif

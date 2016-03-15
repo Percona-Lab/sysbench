@@ -1065,7 +1065,7 @@ int mongodb_init_driver()
   return 1; 
 }
 
-int mongodb_insert_document(db_conn_t *con, char *database_name, char *collection_name, bson_t *doc)
+int mongodb_insert_document(db_conn_t *con, const char *database_name, const char *collection_name, bson_t *doc)
 {
   int res;
   bson_error_t error;
@@ -1083,7 +1083,7 @@ int mongodb_insert_document(db_conn_t *con, char *database_name, char *collectio
   return res;
 }
 
-bool mongodb_remove_document(db_conn_t *con, char *database_name, char *collection_name, int _id)
+bool mongodb_remove_document(db_conn_t *con, const char *database_name, const char *collection_name, const int _id)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   bson_error_t error;
@@ -1100,7 +1100,7 @@ bool mongodb_remove_document(db_conn_t *con, char *database_name, char *collecti
 }
 
 
-bool mongodb_oltp_insert_document(db_conn_t *con, char *database_name, char *collection_name, bson_t *doc)
+bool mongodb_oltp_insert_document(db_conn_t *con, const char *database_name, const char *collection_name, bson_t *doc)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   bson_error_t error;
@@ -1118,7 +1118,7 @@ bool mongodb_oltp_insert_document(db_conn_t *con, char *database_name, char *col
   return res;
 }
 
-bool mongodb_drop_collection(db_conn_t *con, char *database_name, char *collection_name)
+bool mongodb_drop_collection(db_conn_t *con, const char *database_name, const char *collection_name)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   bson_error_t error;
@@ -1130,7 +1130,7 @@ bool mongodb_drop_collection(db_conn_t *con, char *database_name, char *collecti
 }
 
 // db.sbtest8.find({_id: 554312}, {c: 1, _id: 0})
-bool mongodb_point_select(db_conn_t *con, char *database_name, char *collection_name, int id)
+bool mongodb_point_select(db_conn_t *con, const char *database_name, const char *collection_name, const int id)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_cursor_t *rs;
@@ -1141,7 +1141,7 @@ bool mongodb_point_select(db_conn_t *con, char *database_name, char *collection_
   assert(collection!=NULL);
   rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
   assert(rs!=NULL);
-  res = mongoc_cursor_next(rs, &doc);
+  res = mongoc_cursor_next(rs, doc);
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
@@ -1149,7 +1149,7 @@ bool mongodb_point_select(db_conn_t *con, char *database_name, char *collection_
 }
 
 // db.sbtest8.find({_id: {$gte: 5523412, $lte: 5523512}}, {c: 1, _id: 0})
-bool mongodb_simple_range(db_conn_t *con, char *database_name, char *collection_name, int start, int end)
+bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char *collection_name, const int start, const int end)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_cursor_t *rs;
@@ -1162,7 +1162,7 @@ bool mongodb_simple_range(db_conn_t *con, char *database_name, char *collection_
     fprintf(stderr,"mongoc_collection_find returned NULL\n");
     return 0;
   }
-  res = mongoc_cursor_next(rs, &doc);
+  res = mongoc_cursor_next(rs, doc);
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
@@ -1170,7 +1170,7 @@ bool mongodb_simple_range(db_conn_t *con, char *database_name, char *collection_
 }
 
 // db.sbtest8.find({_id: {$gte: 5523412, $lte: 5523512}}, {c: 1, _id: 0}).sort({c: 1})
-bool mongodb_order_range(db_conn_t *con, char *database_name, char *collection_name, int start, int end)
+bool mongodb_order_range(db_conn_t *con, const char *database_name, const char *collection_name, const int start, const int end)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_cursor_t *rs;
@@ -1184,7 +1184,7 @@ bool mongodb_order_range(db_conn_t *con, char *database_name, char *collection_n
     fprintf(stderr,"mongoc_collection_find returned NULL\n");
     return 0;
   }
-  res = mongoc_cursor_next(rs, &doc);
+  res = mongoc_cursor_next(rs, doc);
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
@@ -1193,7 +1193,7 @@ bool mongodb_order_range(db_conn_t *con, char *database_name, char *collection_n
 
 
 // db.sbtest8.aggregate([ {$match: {_id: {$gt: 5523412, $lt: 5523512}}}, { $group: { _id: null, total: { $sum: "$k"}} } ])
-bool mongodb_sum_range(db_conn_t *con, char *database_name, char *collection_name, int start, int end)
+bool mongodb_sum_range(db_conn_t *con, const char *database_name, const char *collection_name, const int start, const int end)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_cursor_t *rs;
@@ -1204,7 +1204,7 @@ bool mongodb_sum_range(db_conn_t *con, char *database_name, char *collection_nam
 		      "{", "$match", "{", "_id", "{", "$gt", BCON_INT32(start), "$lt", BCON_INT32(end), "}", "}", "}",
 		      "]");
   rs = mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE, pipeline, NULL, NULL);
-  res = mongoc_cursor_next(rs, &doc);
+  res = mongoc_cursor_next(rs, doc);
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
@@ -1221,7 +1221,7 @@ bool mongodb_sum_range(db_conn_t *con, char *database_name, char *collection_nam
 // I get (Cannot mix top-level query with dollar keys such as $orderby. Use {$query: {},...} instead.)
 // and I have been unable to find the right syntax for this now. 
 
-bool mongodb_distinct_range(db_conn_t *con, char *database_name, char *collection_name, int start, int end)
+bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const char *collection_name, const int start, const int end)
 {
   mongoc_database_t *database = mongoc_client_get_database(con->ptr, database_name);
   mongoc_cursor_t *rs;
@@ -1232,7 +1232,7 @@ bool mongodb_distinct_range(db_conn_t *con, char *database_name, char *collectio
 		     "query", "{", "_id", "{", "$gt", BCON_INT32(start), "$lt", BCON_INT32(end), "}","}");
 
   rs = mongoc_database_command(database, MONGOC_QUERY_NONE, 0, 0, 0, command, NULL, NULL);
-  res = mongoc_cursor_next(rs, &doc);
+  res = mongoc_cursor_next(rs, doc);
   if (!res) {
     bson_error_t error;
     if (mongoc_cursor_error(rs, &error))
@@ -1245,7 +1245,7 @@ bool mongodb_distinct_range(db_conn_t *con, char *database_name, char *collectio
 }
 
 // db.sbtest8.update({_id: 5523412}, {$inc: {k: 1}}, false, false)
-bool mongodb_index_update(db_conn_t *con, char *database_name, char *collection_name, int _id)
+bool mongodb_index_update(db_conn_t *con, const char *database_name, const char *collection_name, const int _id)
 {
   //  fprintf(stderr,"mongodb_index_update(con, %s, %s, %d)\n",database_name, collection_name, _id);
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
@@ -1267,7 +1267,7 @@ bool mongodb_index_update(db_conn_t *con, char *database_name, char *collection_
 }
 
 //db.sbtest8.update({_id: 5523412}, {$set: {c: "hello there"}}, false, false)
-bool mongodb_non_index_update(db_conn_t *con, char *database_name, char *collection_name, int _id)
+bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const char *collection_name, const int _id)
 {
   //  fprintf(stderr,"mongodb_non_index_update(con, %s, %s, %d)\n",database_name, collection_name, _id);
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
@@ -1288,7 +1288,7 @@ bool mongodb_non_index_update(db_conn_t *con, char *database_name, char *collect
   return res;
 }
 
-bool mongodb_create_index(db_conn_t *con, char *database_name, char *collection_name, char *indexed_field_name)
+bool mongodb_create_index(db_conn_t *con, const char *database_name, const char *collection_name, const char *indexed_field_name)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   bson_t *keys = BCON_NEW(indexed_field_name,BCON_INT32(1));

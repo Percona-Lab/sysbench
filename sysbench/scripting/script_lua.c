@@ -33,7 +33,6 @@
 #include "lauxlib.h"
 
 #include "sb_script.h"
-#include "db_driver.h"
 #include "sb_rnd.h"
 
 #define EVENT_FUNC "event"
@@ -669,8 +668,8 @@ int sb_lua_db_disconnect(lua_State *L)
 int sb_lua_mongodb_create_index(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  char *collection_name;
-  char *indexed_field_name;
+  const char *collection_name;
+  const char *indexed_field_name;
   assert(lua_isstring(L,1));
   assert(lua_isstring(L,2));
   collection_name = lua_tostring(L,1); 
@@ -684,16 +683,15 @@ int sb_lua_mongodb_insert(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
   bson_t *doc;
-  int id, k;
-  char *c, *pad, *col;
+  const char *c, *pad, *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   assert(lua_isnumber(L,3));
   assert(lua_isstring(L,4));
   assert(lua_isstring(L,5));
   col = lua_tostring(L,1);
-  id = lua_tonumber(L,2);
-  k = lua_tonumber(L,3);
+  const int id = lua_tonumber(L,2);
+  const int k = lua_tonumber(L,3);
   c = lua_tostring(L,4);
   pad = lua_tostring(L,5);
   doc = BCON_NEW("_id", BCON_INT32(id), "k", BCON_INT32(k), "c", BCON_UTF8(c), "pad", BCON_UTF8(pad));
@@ -707,16 +705,15 @@ int sb_lua_mongodb_oltp_insert(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
   bson_t *doc;
-  int id, k;
-  char *c, *pad, *col;
+  const char *c, *pad, *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   assert(lua_isnumber(L,3));
   assert(lua_isstring(L,4));
   assert(lua_isstring(L,5));
   col = lua_tostring(L,1);
-  id = lua_tonumber(L,2);
-  k = lua_tonumber(L,3);
+  const int id = lua_tonumber(L,2);
+  const int k = lua_tonumber(L,3);
   c = lua_tostring(L,4);
   pad = lua_tostring(L,5);
   doc = BCON_NEW("_id", BCON_INT32(id), "c", BCON_INT32(k), "k", BCON_UTF8(c), "pad", BCON_UTF8(pad));
@@ -730,12 +727,11 @@ int sb_lua_mongodb_oltp_insert(lua_State *L)
 int sb_lua_mongodb_remove(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  int id;
-  char *col;
+  const char *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   col = lua_tostring(L,1);
-  id = lua_tonumber(L,2);
+  const int id = lua_tonumber(L,2);
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_remove_document(ctxt->con, sb_get_value_string("mongo-database-name"), col, id);
@@ -745,12 +741,11 @@ int sb_lua_mongodb_remove(lua_State *L)
 int sb_lua_mongodb_index_update(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  int id;
-  char *col;
+  const char *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   col = lua_tostring(L,1);
-  id = lua_tonumber(L,2);
+  const int id = lua_tonumber(L,2);
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_index_update(ctxt->con, sb_get_value_string("mongo-database-name"), col, id);
@@ -759,12 +754,11 @@ int sb_lua_mongodb_index_update(lua_State *L)
 int sb_lua_mongodb_non_index_update(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  int id;
-  char *col;
+  const char *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   col = lua_tostring(L,1);
-  id = lua_tonumber(L,2);
+  const int id = lua_tonumber(L,2);
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_non_index_update(ctxt->con, sb_get_value_string("mongo-database-name"), col, id);
@@ -773,12 +767,11 @@ int sb_lua_mongodb_non_index_update(lua_State *L)
 int sb_lua_mongodb_point_select(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  char *col;
-  int id;
+  const char *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   col = lua_tostring(L,1);
-  id = lua_tonumber(L,2);
+  const int id = lua_tonumber(L,2);
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_point_select(ctxt->con, sb_get_value_string("mongo-database-name"),col,id);
@@ -788,14 +781,13 @@ int sb_lua_mongodb_point_select(lua_State *L)
 int sb_lua_mongodb_simple_range(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  char *col;
-  int start,end;
+  const char *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   assert(lua_isnumber(L,3));
   col = lua_tostring(L,1);
-  start = lua_tonumber(L,2);
-  end = lua_tonumber(L,3);
+  const int start = lua_tonumber(L,2);
+  const int end = lua_tonumber(L,3);
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_simple_range(ctxt->con, sb_get_value_string("mongo-database-name"),col,start,end);
@@ -804,14 +796,13 @@ int sb_lua_mongodb_simple_range(lua_State *L)
 int sb_lua_mongodb_order_range(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  char *col;
-  int start,end;
+  const char *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   assert(lua_isnumber(L,3));
   col = lua_tostring(L,1);
-  start = lua_tonumber(L,2);
-  end = lua_tonumber(L,3);
+  const int start = lua_tonumber(L,2);
+  const int end = lua_tonumber(L,3);
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_order_range(ctxt->con, sb_get_value_string("mongo-database-name"),col,start,end);
@@ -820,14 +811,13 @@ int sb_lua_mongodb_order_range(lua_State *L)
 int sb_lua_mongodb_distinct_range(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  char *col;
-  int start,end;
+  const char *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   assert(lua_isnumber(L,3));
   col = lua_tostring(L,1);
-  start = lua_tonumber(L,2);
-  end = lua_tonumber(L,3);
+  const int start = lua_tonumber(L,2);
+  const int end = lua_tonumber(L,3);
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_distinct_range(ctxt->con, sb_get_value_string("mongo-database-name"),col,start,end);
@@ -836,14 +826,13 @@ int sb_lua_mongodb_distinct_range(lua_State *L)
 int sb_lua_mongodb_sum_range(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  char *col;
-  int start,end;
+  const char *col;
   assert(lua_isstring(L,1));
   assert(lua_isnumber(L,2));
   assert(lua_isnumber(L,3));
   col = lua_tostring(L,1);
-  start = lua_tonumber(L,2);
-  end = lua_tonumber(L,3);
+  const int start = lua_tonumber(L,2);
+  const int end = lua_tonumber(L,3);
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_sum_range(ctxt->con, sb_get_value_string("mongo-database-name"),col,start,end);
@@ -852,7 +841,7 @@ int sb_lua_mongodb_sum_range(lua_State *L)
 int sb_lua_mongodb_drop_collection(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
-  char *collection_name;
+  const char *collection_name;
   assert(lua_isstring(L,1));
   collection_name = lua_tostring(L,1);
   assert(ctxt->con!=NULL);
