@@ -49,12 +49,13 @@ endif
 
 sysbench_SOURCES = sysbench.c sysbench.h sb_timer.c sb_timer.h \
 sb_options.c sb_options.h sb_logger.c sb_logger.h sb_list.h db_driver.h \
-db_driver.c sb_percentile.c sb_percentile.h
+db_driver.c sb_percentile.c sb_percentile.h sb_rnd.c sb_rnd.h \
+sb_thread.c sb_thread.h
 
 sysbench_LDADD = tests/fileio/libsbfileio.a tests/threads/libsbthreads.a \
     tests/memory/libsbmemory.a tests/cpu/libsbcpu.a \
     tests/mutex/libsbmutex.a scripting/libsbscript.a \
-    $(mysql_ldadd) $(drizzle_ldadd) $(attachsql_ldadd) $(pgsql_ldadd) $(ora_ldadd) $(lua_ldadd)
+    $(mysql_ldadd) $(mongodb_ldadd) $(drizzle_ldadd) $(attachsql_ldadd) $(pgsql_ldadd) $(ora_ldadd) $(lua_ldadd)
 
 sysbench_LDFLAGS = $(EXTRA_LDFLAGS) $(mysql_ldflags) $(attachsql_ldflags) $(pgsql_ldflags) $(ora_ldflags) $(lua_ldflags)
 

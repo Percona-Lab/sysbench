@@ -33,6 +33,13 @@
 # include <strings.h>
 #endif
 
+#ifdef USE_MONGODB
+#include "scripting/script_lua.h"
+#include "scripting/lua/src/lua.h"
+#include "scripting/lua/src/lualib.h"
+#include "scripting/lua/src/lauxlib.h"
+#endif
+
 #include "db_driver.h"
 #include "sb_list.h"
 #include "sb_percentile.h"
@@ -79,8 +86,9 @@ static int db_parse_arguments(void);
 static void db_free_row(db_row_t *);
 static int db_bulk_do_insert(db_conn_t *, int);
 static db_query_type_t db_get_query_type(const char *);
-static void db_update_thread_stats(int, db_query_type_t);
-static void db_reset_stats(void);
+// next two commented out because I moved them to db_driver.h
+//static void db_update_thread_stats(int, db_query_type_t);
+//static void db_reset_stats(void);
 
 /* DB layer arguments */
 
@@ -973,7 +981,7 @@ db_query_type_t db_get_query_type(const char *query)
 
 /* Update stats according to type */
 
-void db_update_thread_stats(int id, db_query_type_t type)
+static void db_update_thread_stats(int id, db_query_type_t type)
 {
   if (id < 0)
     return;
@@ -1002,7 +1010,7 @@ void db_update_thread_stats(int id, db_query_type_t type)
   pthread_mutex_unlock(&thread_stats[id].stat_mutex);
 }
 
-static void db_reset_stats(void)
+static void db_reset_stats()
 {
   unsigned int i;
 
@@ -1037,3 +1045,260 @@ static void db_reset_stats(void)
     }
   }
 }
+
+/* *** mongodb functions *** */
+#ifdef USE_MONGODB
+
+int mongodb_init_driver()
+{
+  int i;
+  mongoc_init();
+  /* Initialize per-thread stats */
+  
+  thread_stats = (db_thread_stat_t *)malloc(sb_globals.num_threads *
+                                            sizeof(db_thread_stat_t));
+  if (thread_stats == NULL)
+    return NULL;
+
+  for (i = 0; i < sb_globals.num_threads; i++)
+    pthread_mutex_init(&thread_stats[i].stat_mutex, NULL);
+  return 1; 
+}
+
+int mongodb_insert_document(db_conn_t *con, char *database_name, char *collection_name, bson_t *doc)
+{
+  int res;
+  bson_error_t error;
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name); 
+  mongoc_write_concern_t *w = mongoc_write_concern_new();
+  mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+  res = mongoc_collection_insert(collection, MONGOC_INSERT_NONE, doc, w, &error);
+  if (!res) 
+    fprintf(stderr,"error in insert (%s)\n",error.message); 
+  //db_update_thread_stats();
+  mongoc_write_concern_destroy(w);
+  mongoc_collection_destroy(collection);
+  // commented for now, because this is not part of the oltp test execution 
+  //db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
+  return res;
+}
+
+bool mongodb_remove_document(db_conn_t *con, char *database_name, char *collection_name, int _id)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  bson_error_t error;
+  bool res;
+  mongoc_write_concern_t *w = mongoc_write_concern_new();
+  mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+  bson_t *selector = BCON_NEW("_id", BCON_INT32(_id));
+  res = mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, selector, w, &error);
+  if (!res) 
+    fprintf(stderr,"error in insert (%s)\n",error.message); 
+  mongoc_write_concern_destroy(w);
+  mongoc_collection_destroy(collection);
+  return res;
+}
+
+
+bool mongodb_oltp_insert_document(db_conn_t *con, char *database_name, char *collection_name, bson_t *doc)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  bson_error_t error;
+  bool res = 0;
+  bson_iter_t iter, iter_id;
+  if (bson_iter_init(&iter, doc) &&
+      bson_iter_find_descendant(&iter, "_id", &iter_id) &&
+      BSON_ITER_HOLDS_INT32(&iter_id)) { 
+    int _id = bson_iter_int32(&iter_id); 
+    // intentionally ignoring the result to mongodb_remove_document as I don't care if the document was not present
+    mongodb_remove_document(con, database_name, collection_name, _id);
+    res = mongodb_remove_document(con, database_name, collection_name, doc);
+  }
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
+  return res;
+}
+
+bool mongodb_drop_collection(db_conn_t *con, char *database_name, char *collection_name)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  bson_error_t error;
+  bool res = mongoc_collection_drop(collection,&error);
+  if (!res)
+    fprintf(stderr,"error in drop (%s)\n",error.message);
+  mongoc_collection_destroy(collection);
+  return res;
+}
+
+// db.sbtest8.find({_id: 554312}, {c: 1, _id: 0})
+bool mongodb_point_select(db_conn_t *con, char *database_name, char *collection_name, int id)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  mongoc_cursor_t *rs;
+  bson_t *query = BCON_NEW("_id", BCON_INT32(id));
+  bson_t *fields = BCON_NEW("c", BCON_INT32(1), "_id", BCON_INT32(0));  
+  bson_t *doc;
+  bool res;
+  assert(collection!=NULL);
+  rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
+  assert(rs!=NULL);
+  res = mongoc_cursor_next(rs, &doc);
+  mongoc_cursor_destroy(rs);
+  mongoc_collection_destroy(collection);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  return res;
+}
+
+// db.sbtest8.find({_id: {$gte: 5523412, $lte: 5523512}}, {c: 1, _id: 0})
+bool mongodb_simple_range(db_conn_t *con, char *database_name, char *collection_name, int start, int end)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  mongoc_cursor_t *rs;
+  bson_t *query = BCON_NEW("_id", "{", "$gte", BCON_INT32(start), "$lte", BCON_INT32(end), "}");
+  bson_t *fields = BCON_NEW("c", BCON_INT32(1), "_id", BCON_INT32(0));  
+  bson_t *doc;
+  bool res;
+  rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
+  if (rs==NULL) {
+    fprintf(stderr,"mongoc_collection_find returned NULL\n");
+    return 0;
+  }
+  res = mongoc_cursor_next(rs, &doc);
+  mongoc_cursor_destroy(rs);
+  mongoc_collection_destroy(collection);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  return res;
+}
+
+// db.sbtest8.find({_id: {$gte: 5523412, $lte: 5523512}}, {c: 1, _id: 0}).sort({c: 1})
+bool mongodb_order_range(db_conn_t *con, char *database_name, char *collection_name, int start, int end)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  mongoc_cursor_t *rs;
+  bson_t *query = BCON_NEW("$query", "{", "_id", "{", "$gte", BCON_INT32(start), "$lte", BCON_INT32(end), "}","}",
+			   "$orderby", "{", "c", BCON_INT32(1), "}");
+  bson_t *fields = BCON_NEW("c", BCON_INT32(1), "_id", BCON_INT32(0));  
+  bson_t *doc;
+  bool res;
+  rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
+  if (rs==NULL) {
+    fprintf(stderr,"mongoc_collection_find returned NULL\n");
+    return 0;
+  }
+  res = mongoc_cursor_next(rs, &doc);
+  mongoc_cursor_destroy(rs);
+  mongoc_collection_destroy(collection);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  return res;
+}
+
+
+// db.sbtest8.aggregate([ {$match: {_id: {$gt: 5523412, $lt: 5523512}}}, { $group: { _id: null, total: { $sum: "$k"}} } ])
+bool mongodb_sum_range(db_conn_t *con, char *database_name, char *collection_name, int start, int end)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  mongoc_cursor_t *rs;
+  bson_t *pipeline, *doc; 
+  bool res;
+  pipeline = BCON_NEW("pipeline", "[", 
+		      "{", "$group", "{", "_id", BCON_NULL, BCON_UTF8("total"), "{", "$sum", BCON_UTF8("k"), "}", "}", "}", 
+		      "{", "$match", "{", "_id", "{", "$gt", BCON_INT32(start), "$lt", BCON_INT32(end), "}", "}", "}",
+		      "]");
+  rs = mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE, pipeline, NULL, NULL);
+  res = mongoc_cursor_next(rs, &doc);
+  mongoc_cursor_destroy(rs);
+  mongoc_collection_destroy(collection);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  return res;
+}
+
+// db.sbtest8.distinct("c",{_id: {$gt: 5523412, $lt: 5523512}}).sort()
+// but, I don't see the sort in the sysbench-mongodb code, only the distinct, so I am not including it here as when trying
+// to use this: 
+//  command = BCON_NEW("distinct", BCON_UTF8(collection_name), 
+//		     "key", BCON_UTF8("c"), 
+//		     "$query", "{", "_id", "{", "$gt", BCON_INT32(start), "$lt", BCON_INT32(end), "}", 
+//		     "$orderby", "{", "c", BCON_INT32(1), "}", "}"); 
+// I get (Cannot mix top-level query with dollar keys such as $orderby. Use {$query: {},...} instead.)
+// and I have been unable to find the right syntax for this now. 
+
+bool mongodb_distinct_range(db_conn_t *con, char *database_name, char *collection_name, int start, int end)
+{
+  mongoc_database_t *database = mongoc_client_get_database(con->ptr, database_name);
+  mongoc_cursor_t *rs;
+  bson_t *command, *doc;
+  bool res;
+  command = BCON_NEW("distinct", BCON_UTF8(collection_name), 
+		     "key", BCON_UTF8("c"), 
+		     "query", "{", "_id", "{", "$gt", BCON_INT32(start), "$lt", BCON_INT32(end), "}","}");
+
+  rs = mongoc_database_command(database, MONGOC_QUERY_NONE, 0, 0, 0, command, NULL, NULL);
+  res = mongoc_cursor_next(rs, &doc);
+  if (!res) {
+    bson_error_t error;
+    if (mongoc_cursor_error(rs, &error))
+      fprintf(stderr,"error in distinct range (%s)\n",error.message);
+  }
+  mongoc_cursor_destroy(rs);
+  mongoc_database_destroy(database);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  return res;
+}
+
+// db.sbtest8.update({_id: 5523412}, {$inc: {k: 1}}, false, false)
+bool mongodb_index_update(db_conn_t *con, char *database_name, char *collection_name, int _id)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  mongoc_write_concern_t *w = mongoc_write_concern_new();
+  mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+  bson_t *selector, *update;
+  bool res;
+  bson_error_t error;
+  selector = BCON_NEW("_id", BCON_INT32(_id));
+  update = BCON_NEW("$inc", "{", "k", BCON_INT32(1));
+  res = mongoc_collection_update(collection, MONGOC_QUERY_NONE, selector, update, w, &error);
+  if (!res) {
+    fprintf(stderr,"error in index update (%s)\n", error.message);
+  }
+  mongoc_write_concern_destroy(w);
+  mongoc_collection_destroy(collection);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
+  return res;
+}
+
+//db.sbtest8.update({_id: 5523412}, {$set: {c: "hello there"}}, false, false)
+bool mongodb_non_index_update(db_conn_t *con, char *database_name, char *collection_name, int _id)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  mongoc_write_concern_t *w = mongoc_write_concern_new();
+  mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+  bson_t *selector, *update;
+  bool res;
+  bson_error_t error;
+  selector = BCON_NEW("_id", BCON_INT32(_id));
+  update = BCON_NEW("$set", "{", "c", BCON_UTF8("hello there"), "}");
+  res = mongoc_collection_update(collection, MONGOC_QUERY_NONE, selector, update, w, &error);
+  if (!res) {
+    fprintf(stderr,"error in index update (%s)\n", error.message);
+  }
+  mongoc_write_concern_destroy(w);
+  mongoc_collection_destroy(collection);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
+  return res;
+}
+
+bool mongodb_create_index(db_conn_t *con, char *database_name, char *collection_name, char *indexed_field_name)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  bson_t *keys = BCON_NEW(indexed_field_name,BCON_INT32(1));
+  mongoc_index_opt_t *opt = calloc(1, sizeof(mongoc_index_opt_t));
+  bson_error_t error;
+  bool res;
+  mongoc_index_opt_init(opt);
+  res = mongoc_collection_create_index(collection, keys, opt, &error);
+  if (!res)
+    fprintf(stderr,"error in create index(%s)\n",error.message);
+  bson_destroy(keys);
+  mongoc_collection_destroy(collection);
+  return res;
+}
+#endif

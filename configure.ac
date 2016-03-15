@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT([sysbench],[0.5],[sysbench-developers@lists.launchpad.net])
+AC_INIT([sysbench],[0.9],[akopytov@gmail.com])
 AC_CONFIG_AUX_DIR([config])
 # Setting CFLAGS here prevents AC_CANONICAL_TARGET from injecting them
 SAVE_CFLAGS=${CFLAGS}
@@ -100,6 +100,13 @@ AC_ARG_WITH([mysql],
 )
 AC_CACHE_CHECK([whether to compile with MySQL support], [ac_cv_use_mysql], [ac_cv_use_mysql=no])
 
+# Check if we should compile with MongoDB support
+AC_ARG_WITH([mongodb], 
+            AS_HELP_STRING([--with-mongodb],[compile with MongoDB support (default is enabled)]),
+            [ac_cv_use_mongodb=$withval], [ac_cv_use_mongodb=yes]
+)
+AC_CACHE_CHECK([wether to compile with MongoDB support], [ac_cv_use_mongodb], [ac_cv_use_mongodb=no])
+
 # Check if we should compile with Drizzle support
 AC_ARG_WITH([drizzle], 
             AS_HELP_STRING([--with-drizzle],[compile with Drizzle support (default is enabled)]),
@@ -181,6 +188,11 @@ if test x$ac_cv_use_mysql != xno; then
     AC_SUBST([MYSQL_CFLAGS])
 fi
 AM_CONDITIONAL(USE_MYSQL, test x$ac_cv_use_mysql != xno)
+
+if test x$ac_cv_use_mongodb != xno; then
+   AC_DEFINE(USE_MONGODB,1,[Define to 1 if you want to compile with MongoDB support])
+fi
+AM_CONDITIONAL(USE_MONGODB, test x$ac_cv_use_mongodb != xno)
 
 if test x$ac_cv_use_drizzle != xno; then
   AC_LIB_HAVE_LINKFLAGS(drizzle,,
@@ -264,6 +276,9 @@ AC_C_INLINE
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_HEADER_TIME
+AX_TLS([],
+  AC_MSG_ERROR([Thread-local storage is not suppored by the target platform!])
+)
 
 if test "$enable_largefile" = yes; then
     AC_SYS_LARGEFILE
@@ -295,8 +310,8 @@ alarm \
 directio \
 fdatasync \
 gettimeofday \
-lrand48 \
-drand48 \
+lrand48_r \
+rand_r \
 memalign \
 memset \
 mkstemp \
@@ -429,11 +444,14 @@ then
   CC_WARNINGS="-v -errtags=yes -errwarn=%all -erroff=E_INTEGER_OVERFLOW_DETECTED"
 fi
 
-AM_CFLAGS="${CC_WARNINGS} ${AM_CFLAGS} ${PTHREAD_CFLAGS}"
+MONGO_C_DRIVER_LDFLAGS="-L/usr/local/lib -lsasl2 -lssl -lcrypto -lrt -lmongoc-1.0 -lbson-1.0"
+MONGO_C_DRIVER_CFLAGS="-I/usr/local/include/libmongoc-1.0 -I/usr/local/include/libbson-1.0 $MONGO_C_DRIVER_LDFLAGS"
+
+AM_CFLAGS="${CC_WARNINGS} ${AM_CFLAGS} ${PTHREAD_CFLAGS} ${MONGO_C_DRIVER_CFLAGS}"
 
 AM_CPPFLAGS="${AM_CPPFLAGS} -I\$(top_srcdir)/sysbench"
 
-AM_LDFLAGS="$PTHREAD_LIBS"
+AM_LDFLAGS="$PTHREAD_LIBS ${MONGO_C_DRIVER_LDFLAGS}"
 
 AC_SUBST(AM_CFLAGS)
 AC_SUBST(AM_CPPFLAGS)
