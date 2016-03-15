@@ -28,7 +28,6 @@
 #include "sb_percentile.h"
 
 #ifdef USE_MONGODB
-#include <stdio.h>
 #include <bson.h>
 #include <bcon.h>
 #include <mongoc.h>

@@ -1074,7 +1074,7 @@ int mongodb_insert_document(db_conn_t *con, const char *database_name, const cha
   mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
   res = mongoc_collection_insert(collection, MONGOC_INSERT_NONE, doc, w, &error);
   if (!res) 
-    fprintf(stderr,"error in insert (%s)\n",error.message); 
+    log_text(LOG_FATAL,"error in insert (%s)",error.message); 
   //db_update_thread_stats();
   mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
@@ -1093,7 +1093,7 @@ bool mongodb_remove_document(db_conn_t *con, const char *database_name, const ch
   bson_t *selector = BCON_NEW("_id", BCON_INT32(_id));
   res = mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, selector, w, &error);
   if (!res) 
-    fprintf(stderr,"error in insert (%s)\n",error.message); 
+    log_text(LOG_FATAL,"error in insert (%s)",error.message); 
   mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
   return res;
@@ -1124,7 +1124,7 @@ bool mongodb_drop_collection(db_conn_t *con, const char *database_name, const ch
   bson_error_t error;
   bool res = mongoc_collection_drop(collection,&error);
   if (!res)
-    fprintf(stderr,"error in drop (%s)\n",error.message);
+    log_text(LOG_FATAL,"error in drop (%s)",error.message);
   mongoc_collection_destroy(collection);
   return res;
 }
@@ -1159,7 +1159,7 @@ bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char 
   bool res;
   rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
   if (rs==NULL) {
-    fprintf(stderr,"mongoc_collection_find returned NULL\n");
+    log_text(LOG_FATAL,"mongoc_collection_find returned NULL");
     return 0;
   }
   res = mongoc_cursor_next(rs, doc);
@@ -1181,7 +1181,7 @@ bool mongodb_order_range(db_conn_t *con, const char *database_name, const char *
   bool res;
   rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
   if (rs==NULL) {
-    fprintf(stderr,"mongoc_collection_find returned NULL\n");
+    log_text(LOG_FATAL,"mongoc_collection_find returned NULL");
     return 0;
   }
   res = mongoc_cursor_next(rs, doc);
@@ -1236,7 +1236,7 @@ bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const cha
   if (!res) {
     bson_error_t error;
     if (mongoc_cursor_error(rs, &error))
-      fprintf(stderr,"error in distinct range (%s)\n",error.message);
+      log_text(LOG_FATAL,"error in distinct range (%s)",error.message);
   }
   mongoc_cursor_destroy(rs);
   mongoc_database_destroy(database);
@@ -1247,7 +1247,6 @@ bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const cha
 // db.sbtest8.update({_id: 5523412}, {$inc: {k: 1}}, false, false)
 bool mongodb_index_update(db_conn_t *con, const char *database_name, const char *collection_name, const int _id)
 {
-  //  fprintf(stderr,"mongodb_index_update(con, %s, %s, %d)\n",database_name, collection_name, _id);
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_write_concern_t *w = mongoc_write_concern_new();
   mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
@@ -1258,7 +1257,7 @@ bool mongodb_index_update(db_conn_t *con, const char *database_name, const char 
   update = BCON_NEW("$inc", "{", "k", BCON_INT32(1),"}");
   res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, w, &error);
   if (!res) {
-    fprintf(stderr,"error in index update (%s)\n", error.message);
+    log_text(LOG_FATAL,"error in index update (%s)", error.message);
   }
   mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
@@ -1269,7 +1268,6 @@ bool mongodb_index_update(db_conn_t *con, const char *database_name, const char 
 //db.sbtest8.update({_id: 5523412}, {$set: {c: "hello there"}}, false, false)
 bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const char *collection_name, const int _id)
 {
-  //  fprintf(stderr,"mongodb_non_index_update(con, %s, %s, %d)\n",database_name, collection_name, _id);
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_write_concern_t *w = mongoc_write_concern_new();
   mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
@@ -1280,7 +1278,7 @@ bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const c
   update = BCON_NEW("$set", "{", "c", BCON_UTF8("hello there"), "}");
   res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, w, &error);
   if (!res) {
-    fprintf(stderr,"error in non index update (%s)\n", error.message);
+    log_text(LOG_FATAL,"error in non index update (%s)", error.message);
   }
   mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
@@ -1298,7 +1296,7 @@ bool mongodb_create_index(db_conn_t *con, const char *database_name, const char 
   mongoc_index_opt_init(opt);
   res = mongoc_collection_create_index(collection, keys, opt, &error);
   if (!res)
-    fprintf(stderr,"error in create index(%s)\n",error.message);
+    log_text(LOG_FATAL,"error in create index(%s)",error.message);
   bson_destroy(keys);
   mongoc_collection_destroy(collection);
   return res;
