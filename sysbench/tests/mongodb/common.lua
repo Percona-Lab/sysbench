@@ -12,16 +12,21 @@ function insert(table_id)
    print("Inserting " .. oltp_table_size .. " documents into 'sbtest" .. i .. "'")
    local c_val
    local pad_val
+   local bulk_pos = 0
    for j = 1,oltp_table_size do
 
     c_val = sb_rand_str([[
  ###########-###########-###########-###########-###########-###########-###########-###########-###########-###########]])
     pad_val = sb_rand_str([[
  ###########-###########-###########-###########-###########]])
-
-    mongodb_insert("sbtest" .. i, j, sb_rand(1, oltp_table_size), c_val, pad_val)
+    if bulk_pos >= oltp_bulk_size then
+       bulk_pos = 0
+       mongodb_bulk_execute()
+    end
+    bulk_pos = bulk_pos + 1
+    mongodb_bulk_insert("sbtest" .. i, j, sb_rand(1, oltp_table_size), c_val, pad_val)
    end
-
+   mongodb_bulk_execute()
 end
 
 function prepare()
@@ -53,6 +58,7 @@ function set_vars()
    oltp_index_updates = oltp_index_updates or 1
    oltp_non_index_updates = oltp_non_index_updates or 1
    oltp_inserts = oltp_inserts or 1
+   oltp_bulk_size = oltp_bulk_size or 1000
 
    if (oltp_auto_inc == 'off') then
       oltp_auto_inc = false

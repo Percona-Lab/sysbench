@@ -65,6 +65,10 @@ db_globals_t db_globals;
 
 sb_percentile_t local_percentile;
 
+#ifdef USE_MONGODB
+mongoc_bulk_operation_t *bulk_op;
+#endif
+
 /* Used in intermediate reports */
 static unsigned long last_transactions;
 static unsigned long last_read_ops;
@@ -1063,6 +1067,32 @@ int mongodb_init_driver()
   for (i = 0; i < sb_globals.num_threads; i++)
     pthread_mutex_init(&thread_stats[i].stat_mutex, NULL);
   return 1; 
+}
+
+void mongodb_bulk_insert(db_conn_t *con, const char *database_name, const char *collection_name, bson_t *doc)
+{
+  assert(doc!=NULL);
+  if (bulk_op==NULL) {
+    mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+    mongoc_write_concern_t *w = mongoc_write_concern_new();
+    mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+    bulk_op = mongoc_collection_create_bulk_operation(collection, 0, w);
+    assert(bulk_op!=NULL);
+  }
+  mongoc_bulk_operation_insert(bulk_op, doc);
+}
+
+void mongodb_bulk_execute()
+{
+  if (bulk_op==NULL)
+    return 1;
+  bson_t reply;
+  bson_init(&reply);
+  mongoc_bulk_operation_execute(bulk_op, &reply, NULL);
+  bson_destroy(&reply);
+  mongoc_bulk_operation_destroy(bulk_op);
+  bulk_op=NULL;
+  return 1;
 }
 
 int mongodb_insert_document(db_conn_t *con, const char *database_name, const char *collection_name, bson_t *doc)

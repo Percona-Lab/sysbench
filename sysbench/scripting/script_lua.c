@@ -167,6 +167,8 @@ static int sb_lua_mongodb_non_index_update(lua_State *L);
 static int sb_lua_mongodb_sum_range(lua_State *L);
 static int sb_lua_mongodb_remove(lua_State *L);
 static int sb_lua_mongodb_oltp_insert(lua_State *);
+static void sb_lua_mongodb_bulk_insert(lua_State *);
+static void sb_lua_mongodb_bulk_execute(lua_State *);
 /* Get a per-state interpreter context */
 static sb_lua_ctxt_t *sb_lua_get_context(lua_State *);
 
@@ -453,6 +455,12 @@ lua_State *sb_lua_new_state(const char *scriptname, int thread_id)
 
   lua_pushcfunction(state, sb_lua_db_query);
   lua_setglobal(state, "db_query");
+
+  lua_pushcfunction(state, sb_lua_mongodb_bulk_insert);
+  lua_setglobal(state, "mongodb_bulk_insert");
+
+  lua_pushcfunction(state, sb_lua_mongodb_bulk_execute);
+  lua_setglobal(state, "mongodb_bulk_execute");
  
   lua_pushcfunction(state, sb_lua_mongodb_insert);
   lua_setglobal(state, "mongodb_insert");
@@ -665,6 +673,32 @@ int sb_lua_db_disconnect(lua_State *L)
   return 0;
 }
 
+void sb_lua_mongodb_bulk_insert(lua_State *L)
+{
+  sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
+  bson_t *doc;
+  const char *c, *pad, *collection_name;
+  assert(lua_isstring(L,1));
+  assert(lua_isnumber(L,2));
+  assert(lua_isnumber(L,3));
+  assert(lua_isstring(L,4));
+  assert(lua_isstring(L,5));
+  collection_name = lua_tostring(L,1);
+  const int id = lua_tonumber(L,2);
+  const int k = lua_tonumber(L,3);
+  c = lua_tostring(L,4);
+  pad = lua_tostring(L,5);
+  doc = BCON_NEW("_id", BCON_INT32(id), "k", BCON_INT32(k), "c", BCON_UTF8(c), "pad", BCON_UTF8(pad));
+  assert(ctxt->con!=NULL);
+  assert(ctxt->con->ptr!=NULL);
+  assert(doc!=NULL);
+  mongodb_bulk_insert(ctxt->con, sb_get_value_string("mongo-database-name"), collection_name,doc);
+}
+
+void sb_lua_mongodb_bulk_execute(lua_State *L)
+{
+  mongodb_bulk_execute();
+}
 int sb_lua_mongodb_create_index(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
