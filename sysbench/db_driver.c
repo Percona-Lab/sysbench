@@ -67,6 +67,7 @@ sb_percentile_t local_percentile;
 
 #ifdef USE_MONGODB
 mongoc_bulk_operation_t *bulk_op;
+#define MONGODB_WRITE_CONCERN MONGOC_WRITE_CONCERN_W_DEFAULT
 #endif
 
 /* Used in intermediate reports */
@@ -1055,6 +1056,7 @@ static void db_reset_stats()
 
 int mongodb_init_driver()
 {
+  log_text(LOG_DEBUG,"mongodb_init_driver");
   int i;
   mongoc_init();
   /* Initialize per-thread stats */
@@ -1075,7 +1077,7 @@ void mongodb_bulk_insert(db_conn_t *con, const char *database_name, const char *
   if (bulk_op==NULL) {
     mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
     mongoc_write_concern_t *w = mongoc_write_concern_new();
-    mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+    mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
     bulk_op = mongoc_collection_create_bulk_operation(collection, 0, w);
     assert(bulk_op!=NULL);
   }
@@ -1101,7 +1103,7 @@ int mongodb_insert_document(db_conn_t *con, const char *database_name, const cha
   bson_error_t error;
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name); 
   mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+  mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
   res = mongoc_collection_insert(collection, MONGOC_INSERT_NONE, doc, w, &error);
   if (!res) 
     log_text(LOG_FATAL,"error in insert (%s)",error.message); 
@@ -1119,7 +1121,7 @@ bool mongodb_remove_document(db_conn_t *con, const char *database_name, const ch
   bson_error_t error;
   bool res;
   mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+  mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
   bson_t *selector = BCON_NEW("_id", BCON_INT32(_id));
   res = mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, selector, w, &error);
   if (!res) 
@@ -1145,6 +1147,7 @@ bool mongodb_oltp_insert_document(db_conn_t *con, const char *database_name, con
     res = mongodb_remove_document(con, database_name, collection_name, doc);
   }
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
 }
 
@@ -1175,6 +1178,7 @@ bool mongodb_point_select(db_conn_t *con, const char *database_name, const char 
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
 }
 
@@ -1196,6 +1200,7 @@ bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char 
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
 }
 
@@ -1218,6 +1223,7 @@ bool mongodb_order_range(db_conn_t *con, const char *database_name, const char *
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
 }
 
@@ -1239,6 +1245,7 @@ bool mongodb_sum_range(db_conn_t *con, const char *database_name, const char *co
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
 }
 
@@ -1273,6 +1280,7 @@ bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const cha
   mongoc_cursor_destroy(rs);
   mongoc_database_destroy(database);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
 }
 
@@ -1281,7 +1289,7 @@ bool mongodb_index_update(db_conn_t *con, const char *database_name, const char 
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+  mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
   bson_t *selector, *update;
   bool res;
   bson_error_t error;
@@ -1294,6 +1302,7 @@ bool mongodb_index_update(db_conn_t *con, const char *database_name, const char 
   mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
 }
 
@@ -1302,7 +1311,7 @@ bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const c
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, MONGOC_WRITE_CONCERN_W_MAJORITY);
+  mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
   bson_t *selector, *update;
   bool res;
   bson_error_t error;
@@ -1315,6 +1324,7 @@ bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const c
   mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
 }
 
