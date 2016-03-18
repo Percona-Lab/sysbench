@@ -152,6 +152,7 @@ sb_arg_t general_args[] =
   {"config-file", "File containing command line options", SB_ARG_TYPE_FILE, NULL},
   {"mongo-database-name", "MongoDB Database Name", SB_ARG_TYPE_STRING, NULL},
   {"mongo-url", "MongoDB Connection URL", SB_ARG_TYPE_STRING, NULL},
+  {"mongo-write-concern", "MongoDB Write Concern", SB_ARG_TYPE_INT, NULL},
   {NULL, NULL, SB_ARG_TYPE_NULL, NULL}
 };
 

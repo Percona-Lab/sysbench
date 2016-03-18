@@ -67,7 +67,7 @@ sb_percentile_t local_percentile;
 
 #ifdef USE_MONGODB
 mongoc_bulk_operation_t *bulk_op;
-#define MONGODB_WRITE_CONCERN MONGOC_WRITE_CONCERN_W_DEFAULT
+mongoc_write_concern_t *mongodb_write_concern;
 #endif
 
 /* Used in intermediate reports */
@@ -244,7 +244,10 @@ db_driver_t *db_init(const char *name)
   /* Initialize database driver */
   if (drv->ops.init())
     return NULL;
-
+#ifdef USE_MONGODB
+  log_text(LOG_DEBUG,"db_init for mongodb");
+  mongodb_init_driver();
+#endif
   /* Initialize per-thread stats */
   thread_stats = (db_thread_stat_t *)malloc(sb_globals.num_threads *
                                             sizeof(db_thread_stat_t));
@@ -270,7 +273,6 @@ db_driver_t *db_init(const char *name)
 
   return drv;
 }
-
 
 /* Describe database capabilities */
 
@@ -1057,7 +1059,7 @@ static void db_reset_stats()
 int mongodb_init_driver()
 {
   log_text(LOG_DEBUG,"mongodb_init_driver");
-  int i;
+  int i, wc;
   mongoc_init();
   /* Initialize per-thread stats */
   
@@ -1068,7 +1070,19 @@ int mongodb_init_driver()
 
   for (i = 0; i < sb_globals.num_threads; i++)
     pthread_mutex_init(&thread_stats[i].stat_mutex, NULL);
+
+  mongodb_write_concern = mongoc_write_concern_new();  
+  wc = sb_get_value_int("mongo-write-concern");
+  log_text(LOG_NOTICE,"setting write concern to %d",wc);
+  mongoc_write_concern_set_w(mongodb_write_concern,wc); 
   return 1; 
+}
+
+void mongodb_cleanup()
+{
+  mongoc_write_concern_destroy(mongodb_write_concern);
+  if (bulk_op!=NULL) 
+    mongoc_bulk_operation_destroy(bulk_op);
 }
 
 void mongodb_bulk_insert(db_conn_t *con, const char *database_name, const char *collection_name, bson_t *doc)
@@ -1076,9 +1090,7 @@ void mongodb_bulk_insert(db_conn_t *con, const char *database_name, const char *
   assert(doc!=NULL);
   if (bulk_op==NULL) {
     mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
-    mongoc_write_concern_t *w = mongoc_write_concern_new();
-    mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
-    bulk_op = mongoc_collection_create_bulk_operation(collection, 0, w);
+    bulk_op = mongoc_collection_create_bulk_operation(collection, 0, mongodb_write_concern);
     assert(bulk_op!=NULL);
   }
   mongoc_bulk_operation_insert(bulk_op, doc);
@@ -1102,13 +1114,10 @@ int mongodb_insert_document(db_conn_t *con, const char *database_name, const cha
   int res;
   bson_error_t error;
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name); 
-  mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
-  res = mongoc_collection_insert(collection, MONGOC_INSERT_NONE, doc, w, &error);
+  res = mongoc_collection_insert(collection, MONGOC_INSERT_NONE, doc, mongodb_write_concern, &error);
   if (!res) 
     log_text(LOG_FATAL,"error in insert (%s)",error.message); 
   //db_update_thread_stats();
-  mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
   // commented for now, because this is not part of the oltp test execution 
   //db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
@@ -1120,13 +1129,10 @@ bool mongodb_remove_document(db_conn_t *con, const char *database_name, const ch
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   bson_error_t error;
   bool res;
-  mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
   bson_t *selector = BCON_NEW("_id", BCON_INT32(_id));
-  res = mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, selector, w, &error);
+  res = mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, selector, mongodb_write_concern, &error);
   if (!res) 
     log_text(LOG_FATAL,"error in insert (%s)",error.message); 
-  mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
   return res;
 }
@@ -1288,18 +1294,15 @@ bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const cha
 bool mongodb_index_update(db_conn_t *con, const char *database_name, const char *collection_name, const int _id)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
-  mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
   bson_t *selector, *update;
   bool res;
   bson_error_t error;
   selector = BCON_NEW("_id", BCON_INT32(_id));
   update = BCON_NEW("$inc", "{", "k", BCON_INT32(1),"}");
-  res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, w, &error);
+  res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, mongodb_write_concern, &error);
   if (!res) {
     log_text(LOG_FATAL,"error in index update (%s)", error.message);
   }
-  mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
@@ -1311,7 +1314,7 @@ bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const c
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, MONGODB_WRITE_CONCERN);
+  mongoc_write_concern_set_w(w, mongodb_write_concern);
   bson_t *selector, *update;
   bool res;
   bson_error_t error;
@@ -1321,7 +1324,6 @@ bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const c
   if (!res) {
     log_text(LOG_FATAL,"error in non index update (%s)", error.message);
   }
-  mongoc_write_concern_destroy(w);
   mongoc_collection_destroy(collection);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);

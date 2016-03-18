@@ -640,7 +640,9 @@ int sb_lua_db_connect(lua_State *L)
   char *mongodb_url = sb_get_value_string("mongo-url");
   if (mongodb_url == NULL || sb_get_value_string("mongo-database-name") == NULL)
     luaL_error(L, "Missing url or database name for MongoDB Connection Establishment");
+  log_text(LOG_DEBUG,"mongodb_init_driver");
   pthread_once(&db_init_control, &mongodb_init_driver); 
+  log_text(LOG_DEBUG,"connecting to mongod");
   ctxt->con = (db_conn_t *)calloc(1, sizeof(db_conn_t));
   assert(ctxt->con!=NULL);
   ctxt->con->ptr = mongoc_client_new(mongodb_url);
@@ -661,6 +663,7 @@ int sb_lua_db_disconnect(lua_State *L)
 #ifdef USE_MONGODB 
   ctxt = sb_lua_get_context(L);
   mongoc_client_destroy(ctxt->con->ptr);
+  mongodb_cleanup();
   mongoc_cleanup();
 #else
   ctxt = sb_lua_get_context(L);
