@@ -1074,14 +1074,7 @@ int mongodb_init_driver()
   mongodb_write_concern = mongoc_write_concern_new();  
   wc = sb_get_value_int("mongo-write-concern");
   log_text(LOG_NOTICE,"setting write concern to %d",wc);
-  switch (wc) {
-  case 0: 
-    mongoc_write_concern_set_w(mongodb_write_concern, MONGOC_WRITE_CONCERN_W_DEFAULT);
-    break;
-  case 1:
-    mongoc_write_concern_set_w(mongodb_write_concern, MONGOC_WRITE_CONCERN_W_MAJORITY);
-    break;
-  }
+  mongoc_write_concern_set_w(mongodb_write_concern, wc);
   return 1; 
 }
 
