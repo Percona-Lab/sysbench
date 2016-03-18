@@ -1074,7 +1074,14 @@ int mongodb_init_driver()
   mongodb_write_concern = mongoc_write_concern_new();  
   wc = sb_get_value_int("mongo-write-concern");
   log_text(LOG_NOTICE,"setting write concern to %d",wc);
-  mongoc_write_concern_set_w(mongodb_write_concern,wc); 
+  switch (wc) {
+  case 0: 
+    mongoc_write_concern_set_w(mongodb_write_concern, MONGOC_WRITE_CONCERN_W_DEFAULT);
+    break;
+  case 1:
+    mongoc_write_concern_set_w(mongodb_write_concern, MONGOC_WRITE_CONCERN_W_MAJORITY);
+    break;
+  }
   return 1; 
 }
 
@@ -1313,14 +1320,12 @@ bool mongodb_index_update(db_conn_t *con, const char *database_name, const char 
 bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const char *collection_name, const int _id)
 {
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
-  mongoc_write_concern_t *w = mongoc_write_concern_new();
-  mongoc_write_concern_set_w(w, mongodb_write_concern);
   bson_t *selector, *update;
   bool res;
   bson_error_t error;
   selector = BCON_NEW("_id", BCON_INT32(_id));
   update = BCON_NEW("$set", "{", "c", BCON_UTF8("hello there"), "}");
-  res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, w, &error);
+  res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, mongodb_write_concern, &error);
   if (!res) {
     log_text(LOG_FATAL,"error in non index update (%s)", error.message);
   }
