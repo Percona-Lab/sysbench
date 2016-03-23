@@ -1216,7 +1216,7 @@ bool mongodb_order_range(db_conn_t *con, const char *database_name, const char *
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
   mongoc_cursor_t *rs;
   bson_t *query = BCON_NEW("$query", "{", "_id", "{", "$gte", BCON_INT32(start), "$lte", BCON_INT32(end), "}","}",
-			   "$orderby", "{", "c", BCON_INT32(1), "}");
+			   "$orderby", "{", "k", BCON_INT32(1), "}");
   bson_t *fields = BCON_NEW("c", BCON_INT32(1), "_id", BCON_INT32(0));  
   const bson_t *doc;
   bool res;

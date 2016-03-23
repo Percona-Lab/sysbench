@@ -753,7 +753,7 @@ int sb_lua_mongodb_oltp_insert(lua_State *L)
   const int k = lua_tonumber(L,3);
   c = lua_tostring(L,4);
   pad = lua_tostring(L,5);
-  doc = BCON_NEW("_id", BCON_INT32(id), "c", BCON_INT32(k), "k", BCON_UTF8(c), "pad", BCON_UTF8(pad));
+  doc = BCON_NEW("_id", BCON_INT32(id), "k", BCON_INT32(k), "c", BCON_UTF8(c), "pad", BCON_UTF8(pad));
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   assert(doc!=NULL);
