@@ -1207,8 +1207,10 @@ bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char 
   res = mongoc_cursor_next(rs, &doc);
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  if (res) {
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  }
   return res;
 }
 
@@ -1245,8 +1247,8 @@ bool mongodb_sum_range(db_conn_t *con, const char *database_name, const char *co
   bson_t *pipeline;
   bool res;
   pipeline = BCON_NEW("pipeline", "[", 
-		      "{", "$group", "{", "_id", BCON_NULL, BCON_UTF8("total"), "{", "$sum", BCON_UTF8("k"), "}", "}", "}", 
 		      "{", "$match", "{", "_id", "{", "$gt", BCON_INT32(start), "$lt", BCON_INT32(end), "}", "}", "}",
+		      "{", "$group", "{", "_id", BCON_NULL, BCON_UTF8("total"), "{", "$sum", BCON_UTF8("k"), "}", "}", "}", 
 		      "]");
   rs = mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE, pipeline, NULL, NULL);
   res = mongoc_cursor_next(rs, &doc);
