@@ -1183,8 +1183,10 @@ bool mongodb_point_select(db_conn_t *con, const char *database_name, const char 
   res = mongoc_cursor_next(rs, &doc);
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  if (res) {
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  }
   return res;
 }
 
