@@ -1273,7 +1273,7 @@ bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const cha
   const bson_t *doc;
   bool res;
   command = BCON_NEW("distinct", BCON_UTF8(collection_name), 
-		     "key", BCON_UTF8("c"), 
+		     "key", BCON_UTF8("k"), 
 		     "query", "{", "_id", "{", "$gt", BCON_INT32(start), "$lt", BCON_INT32(end), "}","}");
 
   rs = mongoc_database_command(database, MONGOC_QUERY_NONE, 0, 0, 0, command, NULL, NULL);
