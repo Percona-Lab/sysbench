@@ -1132,7 +1132,7 @@ bool mongodb_remove_document(db_conn_t *con, const char *database_name, const ch
   bson_t *selector = BCON_NEW("_id", BCON_INT32(_id));
   res = mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, selector, mongodb_write_concern, &error);
   if (!res) 
-    log_text(LOG_FATAL,"error in insert (%s)",error.message); 
+    log_text(LOG_FATAL,"error in remove (%s)",error.message); 
   mongoc_collection_destroy(collection);
   return res;
 }

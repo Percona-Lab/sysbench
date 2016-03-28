@@ -50,7 +50,7 @@ function event(thread_id)
      ###########-###########-###########-###########-###########-###########-###########-###########-###########-###########]])
 	local pad_val = sb_rand_str([[
      ###########-###########-###########-###########-###########]])
-       mongodb_oltp_insert("sbtest" .. sb_rand(1, oltp_tables_count+1), sb_rand(1, oltp_table_size), sb_rand(1, oltp_table_size), c_val, pad_val)
+       mongodb_oltp_insert("sbtest" .. sb_rand(1, oltp_tables_count+1), sb_rand(oltp_table_size*2, oltp_table_size*3) + thread_id, sb_rand(1, oltp_table_size), c_val, pad_val)
    end
  
 end
