@@ -9,11 +9,13 @@ function thread_init(thread_id)
 end
 
 function event(thread_id)
-   id_val = sb_rand(1, oltp_table_size+1)
-   k_val = sb_rand(1, oltp_table_size+1)
-   c_val = sb_rand_str([[
-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########]])
-   pad_val = sb_rand_str([[
-###########-###########-###########-###########-###########]])
-   mongodb_insert("sbtest" .. sb_rand_uniform(1, oltp_tables_count), id_val, k_val, c_val, pad_val)
+
+   for i=1, sb_rand(2, oltp_inserts) do
+	local c_val = sb_rand_str([[
+     ###########-###########-###########-###########-###########-###########-###########-###########-###########-###########]])
+	local pad_val = sb_rand_str([[
+     ###########-###########-###########-###########-###########]])
+       mongodb_oltp_insert("sbtest" .. sb_rand(1, oltp_tables_count+1), sb_rand(1, oltp_table_size), sb_rand(1, oltp_table_size), c_val, pad_val)
+   end
+ 
 end

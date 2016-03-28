@@ -1150,7 +1150,7 @@ bool mongodb_oltp_insert_document(db_conn_t *con, const char *database_name, con
     int _id = bson_iter_int32(&iter_id); 
     // intentionally ignoring the result to mongodb_remove_document as I don't care if the document was not present
     mongodb_remove_document(con, database_name, collection_name, _id);
-    res = mongodb_remove_document(con, database_name, collection_name, doc);
+    res = mongodb_insert_document(con, database_name, collection_name, doc);
   }
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
