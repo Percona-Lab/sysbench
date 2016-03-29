@@ -1144,13 +1144,15 @@ bool mongodb_oltp_insert_document(db_conn_t *con, const char *database_name, con
   bson_error_t error;
   bool res = 0;
   bson_iter_t iter, iter_id;
+  bson_t *query; 
   if (bson_iter_init(&iter, doc) &&
       bson_iter_find_descendant(&iter, "_id", &iter_id) &&
       BSON_ITER_HOLDS_INT32(&iter_id)) { 
+    query = BCON_NEW("_id", BCON_INT32(bson_iter_int32(&iter_id)));
     int _id = bson_iter_int32(&iter_id); 
-    // intentionally ignoring the result to mongodb_remove_document as I don't care if the document was not present
-    mongodb_remove_document(con, database_name, collection_name, _id);
-    res = mongodb_insert_document(con, database_name, collection_name, doc);
+    res = mongoc_collection_find_and_modify(collection, query, NULL, doc, NULL, 0, 1, 0, NULL, &error);
+    if (!res)
+      log_text(LOG_FATAL,"error in insert (%s)", error.message);
   }
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
