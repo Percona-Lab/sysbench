@@ -23,7 +23,7 @@ EXTRA_LDFLAGS = @EXTRA_LDFLAGS@
 
 # The following check will be extended as new database drivers will be added
 if USE_MYSQL
-mysql_ldadd = drivers/mysql/libsbmysql.a $(MYSQL_LIBS)
+mysql_ldadd = drivers/mysql/libsbmysql.a /usr/lib64/mongo.so $(MYSQL_LIBS)
 endif
 
 if USE_DRIZZLE
