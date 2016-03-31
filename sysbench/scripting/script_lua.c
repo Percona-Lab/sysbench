@@ -208,11 +208,12 @@ int script_load_lua(const char *testname, sb_test_t *test)
   lua_getglobal(gstate, THREAD_INIT_FUNC);
   if (!lua_isnil(gstate, -1))
     test->ops.thread_init = &sb_lua_op_thread_init;
-
+  log_text(LOG_DEBUG,"gstate=%s",gstate);
   lua_getglobal(gstate, THREAD_DONE_FUNC);
-  if (!lua_isnil(gstate, -1))
+  //if (!lua_isnil(gstate, -1))
     test->ops.thread_done = &sb_lua_op_thread_done;
-
+  log_text(LOG_DEBUG,"gstate=%s",gstate);
+  log_text(LOG_DEBUG,"test->ops.thread_done = %s",test->ops.thread_done);  
 
   test->ops.print_stats = &sb_lua_op_print_stats;
   
@@ -321,7 +322,7 @@ int sb_lua_op_execute_request(sb_request_t *sb_req, int thread_id)
 int sb_lua_op_thread_init(int thread_id)
 {
   sb_lua_ctxt_t *ctxt;
-
+  log_text(LOG_DEBUG,"sb_lua_op_thread_init");
   ctxt = sb_lua_get_context(states[thread_id]);
 
   if (ctxt->con == NULL)
@@ -332,6 +333,7 @@ int sb_lua_op_thread_init(int thread_id)
   
   if (lua_pcall(states[thread_id], 1, 1, 0))
   {
+    log_text(LOG_DEBUG,"before CALL_ERROR for THREAD_INIT_FUNC");
     CALL_ERROR(states[thread_id], THREAD_INIT_FUNC);
     return 1;
   }
@@ -341,11 +343,20 @@ int sb_lua_op_thread_init(int thread_id)
 
 int sb_lua_op_thread_done(int thread_id)
 {
+  log_text(LOG_DEBUG,"sb_lua_op_thread_done");
+  sb_lua_ctxt_t *ctxt;
+
+  ctxt = sb_lua_get_context(states[thread_id]);
+
+  if (ctxt->con != NULL)
+    sb_lua_db_disconnect(states[thread_id]);
+
   lua_getglobal(states[thread_id], THREAD_DONE_FUNC);
   lua_pushnumber(states[thread_id], (double)thread_id);
-
+  //log_text(LOG_DEBUG,"before lua_pcall (states=%s, states[thread_id]=%s, thread_id=%d, sizeof(states)=%d)",states,states[thread_id],thread_id,sizeof(states)); 
   if (lua_pcall(states[thread_id], 1, 1, 0))
   {
+    log_text(LOG_DEBUG,"before CALL_ERROR for THREAD_DONE_FUNC");
     CALL_ERROR(states[thread_id], THREAD_DONE_FUNC);
     return 1;
   }
@@ -660,19 +671,21 @@ int sb_lua_db_connect(lua_State *L)
 int sb_lua_db_disconnect(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt;
+  log_text(LOG_DEBUG,"script_lua.c:sb_lua_db_disconnect");
+  ctxt = sb_lua_get_context(L);
 #ifdef USE_MONGODB 
-  ctxt = sb_lua_get_context(L);
-  mongoc_client_destroy(ctxt->con->ptr);
-  mongodb_cleanup();
-  mongoc_cleanup();
+  if (ctxt->con && ctxt->con->ptr) {
+    mongoc_client_destroy(ctxt->con->ptr);
+    mongodb_cleanup();
+    mongoc_cleanup();
+  } 
 #else
-  ctxt = sb_lua_get_context(L);
 
   if (ctxt->con)
     db_disconnect(ctxt->con);
 #endif
   ctxt->con = NULL;
-  
+  log_text(LOG_DEBUG,"script_lua.c:sb_lua_db_disconnect completed"); 
   return 0;
 }
 
