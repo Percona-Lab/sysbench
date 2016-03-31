@@ -1190,8 +1190,6 @@ bool mongodb_point_select(db_conn_t *con, const char *database_name, const char 
   res = mongoc_cursor_next(rs, &doc);
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
-  if (doc!=NULL)
-    bson_destroy(doc);
   bson_destroy(query); bson_destroy(fields);
   if (res) {
     db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
@@ -1218,8 +1216,6 @@ bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char 
     mongoc_cursor_destroy(rs);
     mongoc_collection_destroy(collection);
     bson_destroy(query); bson_destroy(fields);
-    if (doc!=NULL)
-      bson_destroy(doc);
     if (res) {
       db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
       db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
@@ -1247,8 +1243,6 @@ bool mongodb_order_range(db_conn_t *con, const char *database_name, const char *
     mongoc_cursor_destroy(rs);
     mongoc_collection_destroy(collection);
     bson_destroy(query); bson_destroy(fields);
-    if (doc!=NULL)
-      bson_destroy(doc);
     db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
     db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   }
@@ -1273,8 +1267,6 @@ bool mongodb_sum_range(db_conn_t *con, const char *database_name, const char *co
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   bson_destroy(pipeline);
-  if (doc!=NULL)
-    bson_destroy(doc);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
@@ -1311,8 +1303,6 @@ bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const cha
   mongoc_cursor_destroy(rs);
   mongoc_database_destroy(database);
   bson_destroy(command);
-  if (doc!=NULL)
-    bson_destroy(doc);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
   return res;
