@@ -1080,7 +1080,7 @@ int mongodb_init_driver()
 
 void mongodb_cleanup()
 {
-  mongoc_write_concern_destroy(mongodb_write_concern);
+  //mongoc_write_concern_destroy(mongodb_write_concern);
   if (bulk_op!=NULL) 
     mongoc_bulk_operation_destroy(bulk_op);
 }
