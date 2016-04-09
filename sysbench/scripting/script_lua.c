@@ -169,6 +169,7 @@ static int sb_lua_mongodb_remove(lua_State *L);
 static int sb_lua_mongodb_oltp_insert(lua_State *);
 static void sb_lua_mongodb_bulk_insert(lua_State *);
 static void sb_lua_mongodb_bulk_execute(lua_State *);
+static void sb_lua_mongodb_fake_commit(lua_State *);
 /* Get a per-state interpreter context */
 static sb_lua_ctxt_t *sb_lua_get_context(lua_State *);
 
@@ -472,6 +473,9 @@ lua_State *sb_lua_new_state(const char *scriptname, int thread_id)
 
   lua_pushcfunction(state, sb_lua_mongodb_bulk_execute);
   lua_setglobal(state, "mongodb_bulk_execute");
+
+  lua_pushcfunction(state, sb_lua_mongodb_fake_commit);
+  lua_setglobal(state, "mongodb_fake_commit");
  
   lua_pushcfunction(state, sb_lua_mongodb_insert);
   lua_setglobal(state, "mongodb_insert");
@@ -715,6 +719,13 @@ void sb_lua_mongodb_bulk_execute(lua_State *L)
 {
   mongodb_bulk_execute();
 }
+
+void sb_lua_mongodb_fake_commit(lua_State *L)
+{
+  sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
+  mongodb_fake_commit(ctxt->con);
+}
+
 int sb_lua_mongodb_create_index(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);

@@ -1109,6 +1109,11 @@ void mongodb_bulk_execute()
   return 1;
 }
 
+void mongodb_fake_commit(db_conn_t *con)
+{
+  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+}
+
 int mongodb_insert_document(db_conn_t *con, const char *database_name, const char *collection_name, bson_t *doc)
 {
   int res;
@@ -1156,7 +1161,7 @@ bool mongodb_oltp_insert_document(db_conn_t *con, const char *database_name, con
       log_text(LOG_FATAL,"error in insert (%s)", error.message);
   }
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  
   mongoc_collection_destroy(collection);
   bson_destroy(query);
   if (doc!=NULL)
@@ -1193,7 +1198,7 @@ bool mongodb_point_select(db_conn_t *con, const char *database_name, const char 
   bson_destroy(query); bson_destroy(fields);
   if (res) {
     db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+    
   }
   return res;
 }
@@ -1218,7 +1223,7 @@ bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char 
     bson_destroy(query); bson_destroy(fields);
     if (res) {
       db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-      db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+      
     }
   }
   return res;
@@ -1244,7 +1249,7 @@ bool mongodb_order_range(db_conn_t *con, const char *database_name, const char *
     mongoc_collection_destroy(collection);
     bson_destroy(query); bson_destroy(fields);
     db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+    
   }
   return res;
 }
@@ -1268,7 +1273,7 @@ bool mongodb_sum_range(db_conn_t *con, const char *database_name, const char *co
   mongoc_collection_destroy(collection);
   bson_destroy(pipeline);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  
   return res;
 }
 
@@ -1304,7 +1309,7 @@ bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const cha
   mongoc_database_destroy(database);
   bson_destroy(command);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  
   return res;
 }
 
@@ -1324,7 +1329,7 @@ bool mongodb_index_update(db_conn_t *con, const char *database_name, const char 
   mongoc_collection_destroy(collection);
   bson_destroy(selector); bson_destroy(update);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  
   return res;
 }
 
@@ -1344,7 +1349,7 @@ bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const c
   mongoc_collection_destroy(collection);
   bson_destroy(selector); bson_destroy(update);
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_COMMIT);
+  
   return res;
 }
 

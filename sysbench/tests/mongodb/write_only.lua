@@ -25,5 +25,6 @@ function event(thread_id)
      ###########-###########-###########-###########-###########]])
 	mongodb_oltp_insert("sbtest" .. sb_rand(1, oltp_tables_count), sb_rand(oltp_table_size*2, oltp_table_size*3) + thread_id, sb_rand(1, oltp_table_size), c_val, pad_val)
    end
+   mongodb_fake_commit()
  
 end
