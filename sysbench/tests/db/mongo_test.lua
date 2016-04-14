@@ -9,6 +9,6 @@ function event(thread_id)
     local db = assert(mongo.Connection.New())
 
     assert(db:connect('localhost'))
-    assert(db:insert('test.values',"{_id: 1}"))
+    assert(db:insert('test.values',"{a: 1}"))
     print(db:count('test.values'))
 end
