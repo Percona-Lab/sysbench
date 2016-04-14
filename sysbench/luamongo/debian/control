@@ -1,0 +1,16 @@
+Source: luamongo
+Section: database
+Priority: optional
+Maintainer: Francisco Zamora-Martinez <pakozm@gmail.com>
+Build-Depends: debhelper (>= 7.0.50), liblua5.2-dev,
+               mongodb (>= 1.6) | mongodb-stable (>= 1.6) | mongodb-unstable (>= 1.6)
+               | mongodb-snapshot (>= 1.6) | libmongoclient-dev (>= 1.6) | mongodb-dev (>= 1.6),
+               libboost-thread-dev (>= 1.40), libboost-filesystem-dev (>= 1.40)
+Standards-Version: 3.8.4
+Homepage: https://github.com/pabloromeu/luamongo
+
+Package: liblua5.2-mongo
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, lua5.2
+Description: Lua driver for MongoDB
+ Lua (http://www.lua.org) driver for MongoDB (http://www.mongodb.org).
