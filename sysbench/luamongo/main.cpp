@@ -27,10 +27,7 @@
 #include <sys/time.h>
 #include "utils.h"
 #include "common.h"
-#include <pthread.h>
 
-static pthread_mutex_t mongo_client_initialization_mutex = PTHREAD_MUTEX_INITIALIZER;
-static int mongo_client_initialized = 0;
 
 extern int mongo_bsontypes_register(lua_State *L);
 extern int mongo_connection_register(lua_State *L);
@@ -66,17 +63,7 @@ struct Initializer {
     ~Initializer() { delete instance; }
     void init() {
 	instance = new mongo::client::GlobalInstance();
-	//	pthread_mutex_lock(&mongo_client_initialization_mutex);
-	//	std::cerr << "Starting critical section\n";
-	//	std::cerr << mongo_client_initialized; 
-	//        if (!mongo_client_initialized) {
-	//	    std::cerr << "Will run assertInitialized\n"; 
-	//	    instance->assertInitialized();
-	//	    mongo_client_initialized = 1;
-	//	}
-	//	std::cerr << mongo_client_initialized; 
-	//	std::cerr << "Leaving critical section\n";
-        //pthread_mutex_unlock(&mongo_client_initialization_mutex);
+	//instance->assertInitialized();
     }
 };
 Initializer initializer;
