@@ -244,10 +244,11 @@ db_driver_t *db_init(const char *name)
   /* Initialize database driver */
   if (drv->ops.init())
     return NULL;
-#ifdef USE_MONGODB
-  log_text(LOG_DEBUG,"db_init for mongodb");
-  mongodb_init_driver();
-#endif
+  char *mongodb_url = sb_get_value_string("mongo-url");
+  if (mongodb_url != NULL) {
+    log_text(LOG_DEBUG,"db_init for mongodb");
+    mongodb_init_driver();
+  }
   /* Initialize per-thread stats */
   thread_stats = (db_thread_stat_t *)malloc(sb_globals.num_threads *
                                             sizeof(db_thread_stat_t));
