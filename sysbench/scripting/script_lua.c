@@ -24,6 +24,7 @@
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
+#include "assert.h"
 
 #include "sb_script.h"
 #include "db_driver.h"
@@ -154,7 +155,11 @@ static int sb_lua_rand_gaussian(lua_State *);
 static int sb_lua_rand_special(lua_State *);
 static int sb_lua_rnd(lua_State *);
 static int sb_lua_rand_str(lua_State *);
-
+/* the next functions were added so that scripts that use luamongo can update stats */
+static void sb_lua_db_count_read(lua_State *);
+static void sb_lua_db_count_write(lua_State *);
+static void sb_lua_db_count_other(lua_State *);
+static void sb_lua_db_count_commit(lua_State *);
 /* Get a per-state interpreter context */
 static sb_lua_ctxt_t *sb_lua_get_context(lua_State *);
 
@@ -471,7 +476,16 @@ lua_State *sb_lua_new_state(const char *scriptname, int thread_id)
 
   lua_pushcfunction(state, sb_lua_db_free_results);
   lua_setglobal(state, "db_free_results");
-  
+ 
+  lua_pushcfunction(state, sb_lua_db_count_read);
+  lua_setglobal(state, "db_count_read");
+  lua_pushcfunction(state, sb_lua_db_count_write);
+  lua_setglobal(state, "db_count_write");
+  lua_pushcfunction(state, sb_lua_db_count_commit);
+  lua_setglobal(state, "db_count_commit");
+  lua_pushcfunction(state, sb_lua_db_count_other);
+  lua_setglobal(state, "db_count_other");
+ 
   lua_pushnumber(state, SB_DB_ERROR_NONE);
   lua_setglobal(state, "DB_ERROR_NONE");
   lua_pushnumber(state, SB_DB_ERROR_RESTART_TRANSACTION);
@@ -1022,6 +1036,35 @@ int sb_lua_db_free_results(lua_State *L)
   rs->ptr = NULL;
   
   return 0;
+}
+
+
+void sb_lua_db_count_read(lua_State *L)
+{
+  sb_lua_ctxt_t *ctxt;
+  ctxt = sb_lua_get_context(L);
+  db_update_thread_stats(ctxt->thread_id, DB_QUERY_TYPE_READ);
+}
+
+void sb_lua_db_count_write(lua_State *L)
+{
+  sb_lua_ctxt_t *ctxt;
+  ctxt = sb_lua_get_context(L);
+  db_update_thread_stats(ctxt->thread_id, DB_QUERY_TYPE_WRITE);
+}
+
+void sb_lua_db_count_other(lua_State *L)
+{
+  sb_lua_ctxt_t *ctxt;
+  ctxt = sb_lua_get_context(L);
+  db_update_thread_stats(ctxt->thread_id, DB_QUERY_TYPE_OTHER);
+}
+
+void sb_lua_db_count_commit(lua_State *L)
+{
+  sb_lua_ctxt_t *ctxt;
+  ctxt = sb_lua_get_context(L);
+  db_update_thread_stats(ctxt->thread_id, DB_QUERY_TYPE_COMMIT);
 }
 
 int sb_lua_rand(lua_State *L)

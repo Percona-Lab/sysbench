@@ -1,14 +1,15 @@
 
-pathtest = string.match(test, "(.*/)") or ""
-
-dofile(pathtest .. "common.lua")
 
 function event(thread_id)
     local mongo = require('mongo')
 
-    local db = assert(mongo.Connection.New())
-
-    assert(db:connect('localhost'))
-    assert(db:insert('test.values',"{a: 1}"))
-    print(db:count('test.values'))
+    local db = mongo.Connection.New()
+    db:connect('localhost')
+    db:insert('test.values',"{a: 1}")
+    db_count_write() 
+    db:insert('test.values',"{a: 2}")
+    db_count_write() 
+    db:insert('test.values',"{a: 3}")
+    db_count_write() 
+    db_count_commit()
 end

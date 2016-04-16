@@ -301,6 +301,10 @@ void db_print_stats(sb_stat_t type);
 /* Associate connection with a thread (required only for statistics */
 void db_set_thread(db_conn_t *, int);
 
+/* The next three prototypes moved from db_driver.c so that script_lua.c can used them (for luamongo) */
+void db_update_thread_stats(int, db_query_type_t);
+void db_reset_stats(void);
+
 /* DB drivers registrars */
 
 #ifdef USE_MYSQL

@@ -34,6 +34,7 @@
 #endif
 
 #include "db_driver.h"
+#include "assert.h"
 #include "sb_list.h"
 #include "sb_percentile.h"
 
@@ -79,9 +80,7 @@ static int db_parse_arguments(void);
 static void db_free_row(db_row_t *);
 static int db_bulk_do_insert(db_conn_t *, int);
 static db_query_type_t db_get_query_type(const char *);
-static void db_update_thread_stats(int, db_query_type_t);
-static void db_reset_stats(void);
-
+ 
 /* DB layer arguments */
 
 static sb_arg_t db_args[] =
@@ -971,12 +970,21 @@ db_query_type_t db_get_query_type(const char *query)
   return DB_QUERY_TYPE_OTHER;
 }
 
-/* Update stats according to type */
-
 void db_update_thread_stats(int id, db_query_type_t type)
 {
+  int i;
   if (id < 0)
     return;
+
+  SB_THREAD_MUTEX_LOCK();
+  if (thread_stats == NULL) {
+    thread_stats = (db_thread_stat_t *)malloc(sb_globals.num_threads * sizeof(db_thread_stat_t));
+    assert(thread_stats!=NULL);
+    for (i = 0; i < sb_globals.num_threads; i++)
+      pthread_mutex_init(&thread_stats[i].stat_mutex, NULL);
+  }
+  SB_THREAD_MUTEX_UNLOCK();
+
 
   pthread_mutex_lock(&thread_stats[id].stat_mutex);
 
@@ -1002,7 +1010,7 @@ void db_update_thread_stats(int id, db_query_type_t type)
   pthread_mutex_unlock(&thread_stats[id].stat_mutex);
 }
 
-static void db_reset_stats(void)
+void db_reset_stats(void)
 {
   unsigned int i;
 
