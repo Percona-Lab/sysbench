@@ -301,9 +301,19 @@ void db_print_stats(sb_stat_t type);
 /* Associate connection with a thread (required only for statistics */
 void db_set_thread(db_conn_t *, int);
 
-/* The next three prototypes moved from db_driver.c so that script_lua.c can used them (for luamongo) */
+/* The next were moved from db_driver.c so that script_lua.c can used them (for luamongo) */
 void db_update_thread_stats(int, db_query_type_t);
 void db_reset_stats(void);
+typedef struct {
+  unsigned long   read_ops;
+  unsigned long   write_ops;
+  unsigned long   other_ops;
+  unsigned long   transactions;
+  unsigned long   errors;
+  unsigned long   reconnects;
+  pthread_mutex_t stat_mutex;
+} db_thread_stat_t;
+db_thread_stat_t *thread_stats; /* per-thread stats */
 
 /* DB drivers registrars */
 

@@ -44,16 +44,6 @@
 /* How many rows to insert before COMMITs (used in bulk insert) */
 #define ROWS_BEFORE_COMMIT 1000
 
-typedef struct {
-  unsigned long   read_ops;
-  unsigned long   write_ops;
-  unsigned long   other_ops;
-  unsigned long   transactions;
-  unsigned long   errors;
-  unsigned long   reconnects;
-  pthread_mutex_t stat_mutex;
-} db_thread_stat_t;
-
 /* Global variables */
 db_globals_t db_globals;
 
@@ -68,7 +58,7 @@ static unsigned long last_reconnects;
 
 /* Static variables */
 static sb_list_t        drivers;          /* list of available DB drivers */
-static db_thread_stat_t *thread_stats; /* per-thread stats */
+//static db_thread_stat_t *thread_stats; /* per-thread stats */
 
 /* Timers used in debug mode */
 static sb_timer_t *exec_timers;
@@ -829,7 +819,7 @@ void db_print_stats(sb_stat_t type)
   unsigned long transactions;
   unsigned long errors;
   unsigned long reconnects;
-
+  fprintf(stderr,"db_print_stats\n");
   /* Summarize per-thread counters */
   read_ops = write_ops = other_ops = transactions = errors = reconnects = 0;
   for (i = 0; i < sb_globals.num_threads; i++)
@@ -982,6 +972,7 @@ void db_update_thread_stats(int id, db_query_type_t type)
     assert(thread_stats!=NULL);
     for (i = 0; i < sb_globals.num_threads; i++)
       pthread_mutex_init(&thread_stats[i].stat_mutex, NULL);
+    db_reset_stats();
   }
   SB_THREAD_MUTEX_UNLOCK();
 

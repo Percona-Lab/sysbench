@@ -346,8 +346,8 @@ int sb_lua_op_thread_done(int thread_id)
 
 void sb_lua_op_print_stats(sb_stat_t type)
 {
-  /* check if db driver has been initialized */
-  if (db_driver != NULL)
+  /* check if db driver has been initialized, or if thread_stats != NULL (the latter for luamongo scripts that don't init a db driver */
+  if (db_driver != NULL || thread_stats!=NULL)
     db_print_stats(type);
 }
 
