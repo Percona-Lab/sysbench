@@ -3,7 +3,6 @@
 #include <list>
 #include "utils.h"
 #include "common.h"
-#include <stdio.h> // added for debugging only
 
 using namespace mongo;
 
@@ -219,7 +218,6 @@ static int dbclient_insert(lua_State *L) {
     int type = lua_type(L, 3);
     if (type == LUA_TSTRING) {
       const char *jsonstr = luaL_checkstring(L, 3);
-      fprintf(stderr,"insert(%s)\n",jsonstr);
       dbclient->insert(ns, fromjson(jsonstr));
     } else if (type == LUA_TTABLE) {
       BSONObj data;
