@@ -68,6 +68,8 @@ sb_percentile_t local_percentile;
 #ifdef USE_MONGODB
 mongoc_bulk_operation_t *bulk_op;
 mongoc_write_concern_t *mongodb_write_concern;
+/* The next var is hackish. I need this so I can destroy the collection after the operation executes, so it has to be global (or otherwise passed to the insert and execute functions for bulk ops). Having only one means I cannot do parallel loads in the prepare phase. */
+mongoc_collection_t *bulk_operation_collection; 
 #endif
 
 /* Used in intermediate reports */
@@ -1090,8 +1092,8 @@ void mongodb_bulk_insert(db_conn_t *con, const char *database_name, const char *
 {
   assert(doc!=NULL);
   if (bulk_op==NULL) {
-    mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
-    bulk_op = mongoc_collection_create_bulk_operation(collection, 0, mongodb_write_concern);
+    bulk_operation_collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+    bulk_op = mongoc_collection_create_bulk_operation(bulk_operation_collection, 0, mongodb_write_concern);
     assert(bulk_op!=NULL);
   }
   mongoc_bulk_operation_insert(bulk_op, doc);
@@ -1107,6 +1109,8 @@ void mongodb_bulk_execute()
   bson_destroy(&reply);
   mongoc_bulk_operation_destroy(bulk_op);
   bulk_op=NULL;
+  mongoc_collection_destroy(bulk_operation_collection);
+  bulk_operation_collection=NULL;
   return 1;
 }
 
