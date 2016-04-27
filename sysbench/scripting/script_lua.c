@@ -713,6 +713,7 @@ void sb_lua_mongodb_bulk_insert(lua_State *L)
   assert(ctxt->con->ptr!=NULL);
   assert(doc!=NULL);
   mongodb_bulk_insert(ctxt->con, sb_get_value_string("mongo-database-name"), collection_name,doc);
+  bson_destroy(doc);
 }
 
 void sb_lua_mongodb_bulk_execute(lua_State *L)
