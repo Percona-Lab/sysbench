@@ -343,7 +343,7 @@ int register_driver_pgsql(sb_list_t *);
 
 #ifdef USE_MONGODB
 #define MONGOC_BULK_OP_SIZE 1000
-int mongodb_init_driver(void);
+void mongodb_init_driver(void);
 void mongodb_cleanup(void);
 int mongodb_insert_document(db_conn_t *, const char *, const char *, bson_t *);
 void mongodb_bulk_insert(db_conn_t *, const char *, const char *, bson_t *);

@@ -167,9 +167,9 @@ static int sb_lua_mongodb_non_index_update(lua_State *L);
 static int sb_lua_mongodb_sum_range(lua_State *L);
 static int sb_lua_mongodb_remove(lua_State *L);
 static int sb_lua_mongodb_oltp_insert(lua_State *);
-static void sb_lua_mongodb_bulk_insert(lua_State *);
-static void sb_lua_mongodb_bulk_execute(lua_State *);
-static void sb_lua_mongodb_fake_commit(lua_State *);
+static int sb_lua_mongodb_bulk_insert(lua_State *);
+static int sb_lua_mongodb_bulk_execute(lua_State *);
+static int sb_lua_mongodb_fake_commit(lua_State *);
 /* Get a per-state interpreter context */
 static sb_lua_ctxt_t *sb_lua_get_context(lua_State *);
 
@@ -656,7 +656,7 @@ int sb_lua_db_connect(lua_State *L)
     if (sb_get_value_string("mongo-database-name") == NULL)
       luaL_error(L, "Missing url or database name for MongoDB Connection Establishment");
     log_text(LOG_DEBUG,"mongodb_init_driver");
-    pthread_once(&db_init_control, &mongodb_init_driver); 
+    pthread_once(&db_init_control, mongodb_init_driver); 
     log_text(LOG_DEBUG,"connecting to mongod");
     ctxt->con = (db_conn_t *)calloc(1, sizeof(db_conn_t));
     assert(ctxt->con!=NULL);
@@ -693,7 +693,7 @@ int sb_lua_db_disconnect(lua_State *L)
   return 0;
 }
 
-void sb_lua_mongodb_bulk_insert(lua_State *L)
+int sb_lua_mongodb_bulk_insert(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
   bson_t *doc;
@@ -714,17 +714,20 @@ void sb_lua_mongodb_bulk_insert(lua_State *L)
   assert(doc!=NULL);
   mongodb_bulk_insert(ctxt->con, sb_get_value_string("mongo-database-name"), collection_name,doc);
   bson_destroy(doc);
+  return 0;
 }
 
-void sb_lua_mongodb_bulk_execute(lua_State *L)
+int sb_lua_mongodb_bulk_execute(lua_State *L)
 {
   mongodb_bulk_execute();
+  return 0;
 }
 
-void sb_lua_mongodb_fake_commit(lua_State *L)
+int sb_lua_mongodb_fake_commit(lua_State *L)
 {
   sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
   mongodb_fake_commit(ctxt->con);
+  return 0;
 }
 
 int sb_lua_mongodb_create_index(lua_State *L)

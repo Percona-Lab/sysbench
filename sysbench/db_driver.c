@@ -1059,7 +1059,7 @@ void db_reset_stats()
 /* *** mongodb functions *** */
 #ifdef USE_MONGODB
 
-int mongodb_init_driver()
+void mongodb_init_driver()
 {
   log_text(LOG_DEBUG,"mongodb_init_driver");
   int i, wc;
@@ -1069,7 +1069,7 @@ int mongodb_init_driver()
   thread_stats = (db_thread_stat_t *)malloc(sb_globals.num_threads *
                                             sizeof(db_thread_stat_t));
   if (thread_stats == NULL)
-    return NULL;
+    return;
 
   for (i = 0; i < sb_globals.num_threads; i++)
     pthread_mutex_init(&thread_stats[i].stat_mutex, NULL);
@@ -1078,7 +1078,6 @@ int mongodb_init_driver()
   wc = sb_get_value_int("mongo-write-concern");
   log_text(LOG_NOTICE,"setting write concern to %d",wc);
   mongoc_write_concern_set_w(mongodb_write_concern, wc);
-  return 1; 
 }
 
 void mongodb_cleanup()
