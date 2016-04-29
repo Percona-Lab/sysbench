@@ -1124,8 +1124,10 @@ int mongodb_insert_document(db_conn_t *con, const char *database_name, const cha
   bson_error_t error;
   mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name); 
   res = mongoc_collection_insert(collection, MONGOC_INSERT_NONE, doc, mongodb_write_concern, &error);
-  if (!res) 
-    log_text(LOG_FATAL,"error in insert (%s)",error.message); 
+  if (!res) {
+    log_text(LOG_FATAL,"error in insert (%s)",error.message);
+     thread_stats[con->thread_id].errors++;
+  }
   //db_update_thread_stats();
   mongoc_collection_destroy(collection);
   // commented for now, because this is not part of the oltp test execution 
@@ -1140,8 +1142,10 @@ bool mongodb_remove_document(db_conn_t *con, const char *database_name, const ch
   bool res;
   bson_t *selector = BCON_NEW("_id", BCON_INT32(_id));
   res = mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, selector, mongodb_write_concern, &error);
-  if (!res) 
-    log_text(LOG_FATAL,"error in remove (%s)",error.message); 
+  if (!res) { 
+    log_text(LOG_FATAL,"error in remove (%s)",error.message);
+    thread_stats[con->thread_id].errors++;
+  }
   mongoc_collection_destroy(collection);
   bson_destroy(selector);
   return res;
@@ -1160,8 +1164,10 @@ bool mongodb_oltp_insert_document(db_conn_t *con, const char *database_name, con
       BSON_ITER_HOLDS_INT32(&iter_id)) { 
     query = BCON_NEW("_id", BCON_INT32(bson_iter_int32(&iter_id)));
     res = mongoc_collection_find_and_modify(collection, query, NULL, doc, NULL, 0, 1, 0, NULL, &error);
-    if (!res)
+    if (!res) {
       log_text(LOG_FATAL,"error in insert (%s)", error.message);
+      thread_stats[con->thread_id].errors++;     
+    }
   }
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
   
@@ -1195,15 +1201,18 @@ bool mongodb_point_select(db_conn_t *con, const char *database_name, const char 
   bool res;
   assert(collection!=NULL);
   rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
-  assert(rs!=NULL);
+  if (rs==NULL) {
+    log_text(LOG_FATAL, "mongoc_collection_find returned NULL");
+    thread_stats[con->thread_id].errors++;
+    return 0;
+  }
   res = mongoc_cursor_next(rs, &doc);
   mongoc_cursor_destroy(rs);
   mongoc_collection_destroy(collection);
   bson_destroy(query); bson_destroy(fields);
   if (res) {
     db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-    
-  }
+  } 
   return res;
 }
 
@@ -1232,8 +1241,10 @@ bool mongodb_generic_query(db_conn_t *con, const char *database_name, const char
     res = 1;
   } else {
     res = mongoc_cursor_next(rs, &doc);
+    if (rs) {
+       db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+    }
     mongoc_cursor_destroy(rs);
-    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
   }
  FINALIZE:mongoc_collection_destroy(collection);
   if (querydoc != NULL)
@@ -1255,7 +1266,8 @@ bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char 
   rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
   if (rs==NULL) {
     log_text(LOG_FATAL,"mongoc_collection_find returned NULL");
-    res = 1;
+    thread_stats[con->thread_id].errors++; 
+    res = 0;
   } else {
     res = mongoc_cursor_next(rs, &doc);
     mongoc_cursor_destroy(rs);
@@ -1282,6 +1294,7 @@ bool mongodb_order_range(db_conn_t *con, const char *database_name, const char *
   rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
   if (rs==NULL) {
     log_text(LOG_FATAL,"mongoc_collection_find returned NULL");
+    thread_stats[con->thread_id].errors++;
     res = 0;
   } else {
     res = mongoc_cursor_next(rs, &doc);
@@ -1308,12 +1321,17 @@ bool mongodb_sum_range(db_conn_t *con, const char *database_name, const char *co
 		      "{", "$group", "{", "_id", BCON_NULL, BCON_UTF8("total"), "{", "$sum", BCON_UTF8("k"), "}", "}", "}", 
 		      "]");
   rs = mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE, pipeline, NULL, NULL);
-  res = mongoc_cursor_next(rs, &doc);
-  mongoc_cursor_destroy(rs);
-  mongoc_collection_destroy(collection);
-  bson_destroy(pipeline);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-  
+  if (rs==NULL) {
+    thread_stats[con->thread_id].errors++;
+    log_text(LOG_FATAL,"mongoc_collection_aggregate returned NULL");
+    res = 0;
+  } else {
+    res = mongoc_cursor_next(rs, &doc);
+    mongoc_cursor_destroy(rs);
+    mongoc_collection_destroy(collection);
+    bson_destroy(pipeline);
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  }
   return res;
 }
 
@@ -1342,14 +1360,15 @@ bool mongodb_distinct_range(db_conn_t *con, const char *database_name, const cha
   res = mongoc_cursor_next(rs, &doc);
   if (!res) {
     bson_error_t error;
-    if (mongoc_cursor_error(rs, &error))
+    if (mongoc_cursor_error(rs, &error)) 
       log_text(LOG_FATAL,"error in distinct range (%s)",error.message);
+    thread_stats[con->thread_id].errors++;
+  } else {
+    mongoc_cursor_destroy(rs);
+    mongoc_database_destroy(database);
+    bson_destroy(command);
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
   }
-  mongoc_cursor_destroy(rs);
-  mongoc_database_destroy(database);
-  bson_destroy(command);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
-  
   return res;
 }
 
@@ -1365,11 +1384,12 @@ bool mongodb_index_update(db_conn_t *con, const char *database_name, const char 
   res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, mongodb_write_concern, &error);
   if (!res) {
     log_text(LOG_FATAL,"error in index update (%s)", error.message);
+    thread_stats[con->thread_id].errors++;
+  } else {
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
   }
   mongoc_collection_destroy(collection);
   bson_destroy(selector); bson_destroy(update);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
-  
   return res;
 }
 
@@ -1385,11 +1405,12 @@ bool mongodb_non_index_update(db_conn_t *con, const char *database_name, const c
   res = mongoc_collection_update(collection, MONGOC_UPDATE_NONE, selector, update, mongodb_write_concern, &error);
   if (!res) {
     log_text(LOG_FATAL,"error in non index update (%s)", error.message);
+    thread_stats[con->thread_id].errors++;
+  } else {
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
   }
   mongoc_collection_destroy(collection);
   bson_destroy(selector); bson_destroy(update);
-  db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
-  
   return res;
 }
 
