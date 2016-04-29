@@ -1254,6 +1254,31 @@ bool mongodb_generic_query(db_conn_t *con, const char *database_name, const char
  return res;
 }
 
+bool mongodb_generic_insert(db_conn_t *con, const char *database_name, const char *collection_name, const char *document)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  bson_error_t error;
+  bool res;
+  const bson_t *doc;
+  bson_t *document_to_insert = bson_new_from_json(document, strlen(document), &error);
+  if (document_to_insert == NULL) {
+    log_text(LOG_FATAL, "error in generic insert (%s)", error.message);
+    res = 0;
+    goto FINALIZE;
+  }
+  res = mongoc_collection_insert(collection, MONGOC_INSERT_NONE, document_to_insert, mongodb_write_concern, &error);
+  if (!res) {
+    log_text(LOG_FATAL, "mongoc_collection_insert returned failed (%s)", error.message);
+    thread_stats[con->thread_id].errors++; 
+  } else {
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
+  }
+ FINALIZE: mongoc_collection_destroy(collection);
+  if (document_to_insert != NULL)
+    bson_destroy(document_to_insert);
+ return res;
+}
+
 // db.sbtest8.find({_id: {$gte: 5523412, $lte: 5523512}}, {c: 1, _id: 0})
 bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char *collection_name, const int start, const int end)
 {
