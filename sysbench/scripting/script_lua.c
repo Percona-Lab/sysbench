@@ -1463,4 +1463,5 @@ unsigned int sb_lua_table_size(lua_State *L, int index)
 int sb_lua_mongodb_init_driver(lua_State *L)
 {
   mongodb_init_driver();
+  return 1;
 }

@@ -1101,7 +1101,7 @@ void mongodb_bulk_insert(db_conn_t *con, const char *database_name, const char *
 void mongodb_bulk_execute()
 {
   if (bulk_op==NULL)
-    return 1;
+    return;
   bson_t reply;
   bson_init(&reply);
   mongoc_bulk_operation_execute(bulk_op, &reply, NULL);
@@ -1110,7 +1110,7 @@ void mongodb_bulk_execute()
   bulk_op=NULL;
   mongoc_collection_destroy(bulk_operation_collection);
   bulk_operation_collection=NULL;
-  return 1;
+  return;
 }
 
 void mongodb_fake_commit(db_conn_t *con)
@@ -1154,12 +1154,11 @@ bool mongodb_oltp_insert_document(db_conn_t *con, const char *database_name, con
   bson_error_t error;
   bool res = 0;
   bson_iter_t iter, iter_id;
-  bson_t *query; 
+  bson_t *query = NULL; 
   if (bson_iter_init(&iter, doc) &&
       bson_iter_find_descendant(&iter, "_id", &iter_id) &&
       BSON_ITER_HOLDS_INT32(&iter_id)) { 
     query = BCON_NEW("_id", BCON_INT32(bson_iter_int32(&iter_id)));
-    int _id = bson_iter_int32(&iter_id); 
     res = mongoc_collection_find_and_modify(collection, query, NULL, doc, NULL, 0, 1, 0, NULL, &error);
     if (!res)
       log_text(LOG_FATAL,"error in insert (%s)", error.message);
@@ -1167,7 +1166,8 @@ bool mongodb_oltp_insert_document(db_conn_t *con, const char *database_name, con
   db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_WRITE);
   
   mongoc_collection_destroy(collection);
-  bson_destroy(query);
+  if (query!=NULL)
+    bson_destroy(query);
   if (doc!=NULL)
     bson_destroy(doc);
   return res;
