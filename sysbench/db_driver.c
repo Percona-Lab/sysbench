@@ -991,7 +991,7 @@ db_query_type_t db_get_query_type(const char *query)
 
 /* Update stats according to type */
 
-static void db_update_thread_stats(int id, db_query_type_t type)
+void db_update_thread_stats(int id, db_query_type_t type)
 {
   if (id < 0)
     return;
@@ -1020,7 +1020,7 @@ static void db_update_thread_stats(int id, db_query_type_t type)
   pthread_mutex_unlock(&thread_stats[id].stat_mutex);
 }
 
-static void db_reset_stats()
+void db_reset_stats()
 {
   unsigned int i;
 

@@ -292,8 +292,8 @@ db_error_t db_errno(db_conn_t *);
 int db_print_value(db_bind_t *, char *, int);
 
 // moved from db_driver.c so that mongodb.c can use them
-static void db_update_thread_stats(int, db_query_type_t);
-static void db_reset_stats(void);
+void db_update_thread_stats(int, db_query_type_t);
+void db_reset_stats(void);
 
 /* Initialize multi-row insert operation */
 int db_bulk_insert_init(db_conn_t *, const char *);
