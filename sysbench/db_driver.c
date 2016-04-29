@@ -1207,6 +1207,42 @@ bool mongodb_point_select(db_conn_t *con, const char *database_name, const char 
   return res;
 }
 
+bool mongodb_generic_query(db_conn_t *con, const char *database_name, const char *collection_name, const char *query, const char *fields)
+{
+  mongoc_collection_t *collection = mongoc_client_get_collection(con->ptr, database_name, collection_name);
+  mongoc_cursor_t *rs;
+  bson_error_t error;
+  bool res;
+  const bson_t *doc;
+  bson_t *querydoc = bson_new_from_json(query, strlen(query), &error);
+  if (querydoc == NULL) {
+    log_text(LOG_FATAL, "error in generic query (%s)", error.message);
+    res = 0;
+    goto FINALIZE;
+  }
+  bson_t *fieldsdoc = bson_new_from_json(fields, strlen(fields), &error);
+  if (fieldsdoc == NULL) {
+    log_text(LOG_FATAL, "error in generic query (%s)", error.message);
+    res = 0;
+    goto FINALIZE;
+  }
+  rs = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, querydoc, fieldsdoc, NULL);
+  if (rs == NULL) {
+    log_text(LOG_FATAL, "mongoc_collection_find returned NULL");
+    res = 1;
+  } else {
+    res = mongoc_cursor_next(rs, &doc);
+    mongoc_cursor_destroy(rs);
+    db_update_thread_stats(con->thread_id, DB_QUERY_TYPE_READ);
+  }
+ FINALIZE:mongoc_collection_destroy(collection);
+  if (querydoc != NULL)
+    bson_destroy(querydoc);
+  if (fieldsdoc != NULL)
+    bson_destroy(fieldsdoc);
+ return res;
+}
+
 // db.sbtest8.find({_id: {$gte: 5523412, $lte: 5523512}}, {c: 1, _id: 0})
 bool mongodb_simple_range(db_conn_t *con, const char *database_name, const char *collection_name, const int start, const int end)
 {

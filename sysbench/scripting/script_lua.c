@@ -159,6 +159,7 @@ static int sb_lua_mongodb_insert(lua_State *);
 static int sb_lua_mongodb_drop_collection(lua_State *L);
 static int sb_lua_mongodb_create_index(lua_State *L);
 static int sb_lua_mongodb_point_select(lua_State *L);
+static int sb_lua_mongodb_generic_query(lua_State *L);
 static int sb_lua_mongodb_simple_range(lua_State *L);
 static int sb_lua_mongodb_order_range(lua_State *L);
 static int sb_lua_mongodb_distinct_range(lua_State *L);
@@ -495,6 +496,9 @@ lua_State *sb_lua_new_state(const char *scriptname, int thread_id)
   lua_pushcfunction(state, sb_lua_mongodb_point_select);
   lua_setglobal(state, "mongodb_point_select");
 
+  lua_pushcfunction(state, sb_lua_mongodb_generic_query);
+  lua_setglobal(state, "mongodb_generic_query");
+  
   lua_pushcfunction(state, sb_lua_mongodb_simple_range);
   lua_setglobal(state, "mongodb_simple_range");
 
@@ -840,6 +844,18 @@ int sb_lua_mongodb_point_select(lua_State *L)
   assert(ctxt->con!=NULL);
   assert(ctxt->con->ptr!=NULL);
   return mongodb_point_select(ctxt->con, sb_get_value_string("mongo-database-name"),col,id);
+}
+
+int sb_lua_mongodb_generic_query(lua_State *L)
+{
+  sb_lua_ctxt_t *ctxt = sb_lua_get_context(L);
+  assert(lua_isstring(L,1));
+  assert(lua_isstring(L,2));
+  assert(lua_isstring(L,3));
+  const char *col = lua_tostring(L,1);
+  const char *query = lua_tostring(L,2);
+  const char *fields = lua_tostring(L,2);
+  return mongodb_generic_query(ctxt->con, sb_get_value_string("mongo-database-name"),col,query,fields);
 }
 
 // bool mongodb_simple_range(mongoc_client_t *con, char *database_name, char *collection_name, int start, int end)
